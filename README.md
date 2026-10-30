@@ -7,7 +7,7 @@ A multi-client TCP chat room in Python (standard library only) with **public and
 Requires Python 3.10+.
 
 ```bash
-python -m chat.server --host 127.0.0.1 --port 5000
+python -m chat.server --port 5000      # listens on all interfaces; prints the LAN IP to share
 ```
 
 ```bash
@@ -17,6 +17,16 @@ python -m chat.client --port 5000 --name alice     # terminal client
 ```bash
 python -m chat.gui_client --port 5000              # GUI client (needs tkinter)
 ```
+
+To connect from another computer on the same network, pass the server's IP: `python -m chat.client --host 192.168.x.x --name bob`. If that fails, allow TCP port 5000 through the firewall.
+
+To see the whole thing in a single terminal, which is handy for a presentation:
+
+```bash
+python demo.py
+```
+
+The full project report (networking concepts, protocol, diagrams, test results, viva questions) is in [`docs/REPORT.md`](docs/REPORT.md).
 
 ## Sending private messages
 

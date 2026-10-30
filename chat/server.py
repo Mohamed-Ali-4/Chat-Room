@@ -5,6 +5,7 @@ Run:  python -m chat.server [--host 0.0.0.0] [--port 5000]
 
 import argparse
 import logging
+import socket
 import socketserver
 import threading
 
@@ -55,6 +56,7 @@ class ChatRoom:
         if name == sender:
             return "You cannot send a private message to yourself."
         message = {"type": "private", "from": sender, "to": name, "text": text}
+        log.info("PRIVATE %s -> %s (%d chars, unicast)", sender, name, len(text))
         target.send(message)
         if origin is not None:
             origin.send(message)  # echo so the sender sees what was delivered
@@ -130,6 +132,7 @@ class ClientHandler(socketserver.StreamRequestHandler):
         text = str(message.get("text", "")).strip()
         if kind == "public":
             if text:
+                log.info("PUBLIC  %s -> everyone (%d chars, broadcast)", self.name, len(text))
                 room.broadcast({"type": "public", "from": self.name, "text": text})
         elif kind == "private":
             recipient = str(message.get("to", "")).strip()
@@ -159,19 +162,37 @@ class ChatServer(socketserver.ThreadingTCPServer):
         super().__init__(address, handler)
 
 
+def lan_address() -> str:
+    """Best guess at this machine's LAN IP, for telling other computers where to connect."""
+    probe = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        # connect() on a UDP socket sends no packets; it only picks the outgoing interface.
+        probe.connect(("8.8.8.8", 80))
+        return probe.getsockname()[0]
+    except OSError:
+        return "127.0.0.1"
+    finally:
+        probe.close()
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Chat room server")
-    parser.add_argument("--host", default="127.0.0.1")
+    parser.add_argument("--host", default="0.0.0.0",
+                        help="interface to bind (0.0.0.0 = all, 127.0.0.1 = this machine only)")
     parser.add_argument("--port", type=int, default=5000)
     args = parser.parse_args(argv)
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
     with ChatServer((args.host, args.port)) as server:
-        log.info("Chat server listening on %s:%d", args.host, args.port)
+        log.info("Chat server listening on %s:%d (TCP)", args.host, args.port)
+        if args.host == "0.0.0.0":
+            log.info("Other computers on the network can connect with --host %s --port %d",
+                     lan_address(), args.port)
         try:
             server.serve_forever()
         except KeyboardInterrupt:
             log.info("Shutting down")
+            server.room.broadcast({"type": "system", "text": "Server is shutting down."})
 
 
 if __name__ == "__main__":
