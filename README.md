@@ -1,13 +1,24 @@
 # Chat-Room
 
-A multi-client TCP chat room in Python (standard library only) with **public and private messages**, a terminal client and a Tkinter GUI client.
+A multi-client TCP chat room in Python (standard library only) with **public and private messages**, a terminal client, a Tkinter GUI client and a **website** (WebSocket written from scratch). Everyone shares the same room, so people in the browser, the terminal and the GUI can all send each other private messages.
+
+## Two laptops with the website
+
+1. Connect both laptops to the same Wi-Fi.
+2. On laptop A, run `python -m chat.server`. It prints a line like `Website: open http://192.168.0.39:8000 ...`.
+3. Open that address in a browser on **both** laptops (or on a phone) and join with different nicknames.
+4. Click a name in the user list to send that person a private message.
+
+Laptop B only needs a browser, not Python. If it can't load the page, allow Python through Windows Firewall on laptop A (TCP port 8000).
+
+![Website](docs/web-screenshot.png)
 
 ## Running
 
 Requires Python 3.10+.
 
 ```bash
-python -m chat.server --port 5000      # listens on all interfaces; prints the LAN IP to share
+python -m chat.server      # TCP clients on port 5000, website on port 8000; prints the LAN IP to share
 ```
 
 ```bash

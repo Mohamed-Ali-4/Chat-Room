@@ -1,0 +1,411 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chat Room</title>
+<style>
+  :root {
+    --bg: #f4f5f7; --panel: #ffffff; --text: #1d2129; --muted: #6b7280;
+    --border: #e3e5e8; --accent: #2563eb; --accent-text: #ffffff;
+    --mine: #2563eb; --mine-text: #ffffff; --theirs: #eef0f3;
+    --private: #7c3aed; --private-bg: #f3edff; --error: #c62828; --ok: #16a34a;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1115; --panel: #181b21; --text: #e6e8eb; --muted: #9aa1ab;
+      --border: #2a2f37; --accent: #4f8cff; --mine: #3b74e8; --theirs: #232831;
+      --private: #a78bfa; --private-bg: #2a2140; --error: #ff6b6b; --ok: #34d399;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  button, input { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  .hidden { display: none !important; }
+
+  /* Join screen */
+  #join { min-height: 100%; display: grid; place-items: center; padding: 16px; }
+  .card {
+    width: 100%; max-width: 380px; background: var(--panel); border: 1px solid var(--border);
+    border-radius: 14px; padding: 28px 24px;
+  }
+  .card h1 { margin: 0 0 4px; font-size: 22px; }
+  .card p { margin: 0 0 20px; color: var(--muted); font-size: 14px; }
+  .card label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+  .field {
+    width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--bg); outline: none;
+  }
+  .field:focus { border-color: var(--accent); }
+  .primary {
+    width: 100%; margin-top: 14px; padding: 10px; border: 0; border-radius: 8px;
+    background: var(--accent); color: var(--accent-text); font-weight: 600;
+  }
+  .primary:disabled { opacity: .6; cursor: default; }
+  #join-error { color: var(--error); font-size: 13px; min-height: 18px; margin-top: 10px; }
+  .server-info { margin-top: 18px; font-size: 12px; color: var(--muted); }
+
+  /* Chat screen */
+  #chat { height: 100%; display: grid; grid-template-rows: auto 1fr; }
+  header {
+    display: flex; align-items: center; gap: 12px; padding: 10px 16px;
+    background: var(--panel); border-bottom: 1px solid var(--border);
+  }
+  header h2 { margin: 0; font-size: 17px; flex: 1; }
+  .status { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); }
+  .dot.off { background: var(--error); }
+  .ghost { background: none; border: 1px solid var(--border); border-radius: 8px; padding: 5px 10px; font-size: 13px; }
+
+  .layout { display: grid; grid-template-columns: 220px 1fr; min-height: 0; }
+  aside {
+    background: var(--panel); border-right: 1px solid var(--border); padding: 12px 8px; overflow-y: auto;
+  }
+  aside h3 { margin: 4px 8px 8px; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+  .user {
+    display: flex; align-items: center; gap: 8px; width: 100%; text-align: left;
+    background: none; border: 0; border-radius: 8px; padding: 8px 10px; margin-bottom: 2px;
+  }
+  .user:hover { background: var(--bg); }
+  .user.active { background: var(--accent); color: var(--accent-text); }
+  .avatar {
+    flex: none; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center;
+    font-size: 12px; font-weight: 700; color: #fff;
+  }
+  .user .label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .badge {
+    background: var(--private); color: #fff; border-radius: 10px; font-size: 11px;
+    font-weight: 700; padding: 1px 7px;
+  }
+  .hint { margin: 14px 8px 0; font-size: 12px; color: var(--muted); }
+
+  main { display: grid; grid-template-rows: 1fr auto; min-height: 0; }
+  #log { overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 6px; }
+  .msg { max-width: min(560px, 85%); align-self: flex-start; }
+  .msg.mine { align-self: flex-end; }
+  .meta { font-size: 12px; color: var(--muted); margin: 0 4px 2px; }
+  .mine .meta { text-align: right; }
+  .bubble {
+    padding: 8px 12px; border-radius: 14px; background: var(--theirs);
+    white-space: pre-wrap; overflow-wrap: anywhere;
+  }
+  .mine .bubble { background: var(--mine); color: var(--mine-text); }
+  .private .bubble { background: var(--private-bg); color: var(--text); border: 1px solid var(--private); }
+  .private .meta { color: var(--private); font-weight: 600; }
+  .system { align-self: center; font-size: 13px; color: var(--muted); text-align: center; white-space: pre-wrap; }
+  .system.error { color: var(--error); }
+
+  .composer { border-top: 1px solid var(--border); background: var(--panel); padding: 10px 16px 14px; }
+  .target { display: flex; align-items: center; gap: 8px; font-size: 13px; margin-bottom: 8px; color: var(--muted); }
+  .pill { border-radius: 999px; padding: 2px 10px; font-weight: 600; background: var(--bg); color: var(--text); }
+  .pill.private { background: var(--private-bg); color: var(--private); }
+  .pill button { border: 0; background: none; padding: 0 0 0 6px; color: inherit; }
+  form { display: flex; gap: 8px; }
+  form .field { flex: 1; background: var(--bg); }
+  form .primary { width: auto; margin: 0; padding: 0 18px; }
+
+  @media (max-width: 640px) {
+    .layout { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+    aside { border-right: 0; border-bottom: 1px solid var(--border); padding: 8px; display: flex; gap: 6px; overflow-x: auto; }
+    aside h3, .hint { display: none; }
+    #users { display: flex; gap: 6px; }
+    .user { width: auto; margin: 0; white-space: nowrap; }
+    header .me { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<section id="join">
+  <div class="card">
+    <h1>Chat Room</h1>
+    <p>Public chat and private messages over WebSocket.</p>
+    <form id="join-form" autocomplete="off">
+      <label for="nick">Choose a nickname</label>
+      <input id="nick" class="field" maxlength="20" placeholder="e.g. alice" required>
+      <button id="join-btn" class="primary" type="submit">Join chat</button>
+    </form>
+    <div id="join-error"></div>
+    <div class="server-info">Server: <span id="server-addr"></span></div>
+  </div>
+</section>
+
+<section id="chat" class="hidden">
+  <header>
+    <h2>Chat Room</h2>
+    <span class="status me">You are <strong id="me"></strong></span>
+    <span class="status"><span id="dot" class="dot"></span><span id="conn">Connected</span></span>
+    <button id="leave" class="ghost" type="button">Leave</button>
+  </header>
+  <div class="layout">
+    <aside>
+      <h3>Send to</h3>
+      <div id="users"></div>
+      <p class="hint">Select a user to message them privately. Commands like <code>/msg bob hi</code> and <code>@bob hi</code> also work.</p>
+    </aside>
+    <main>
+      <div id="log" aria-live="polite"></div>
+      <div class="composer">
+        <div class="target">To: <span id="target" class="pill"></span></div>
+        <form id="send-form" autocomplete="off">
+          <input id="input" class="field" placeholder="Type a message… (/help for commands)" maxlength="2000">
+          <button class="primary" type="submit">Send</button>
+        </form>
+      </div>
+    </main>
+  </div>
+</section>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const EVERYONE = null;
+  const HELP = [
+    "Commands:",
+    "  /msg <user> <message>   private message (also /w, /pm, /whisper, /tell)",
+    "  @<user> <message>       private message shortcut",
+    "  /r <message>            reply to the last private message",
+    "  /users                  list online users",
+    "  /help                   show this help",
+    "Or select a user on the left to send privately.",
+  ].join("\n");
+
+  let ws = null, me = null, users = [], target = EVERYONE, lastSender = null;
+  const unread = {};
+
+  $("server-addr").textContent = location.host;
+
+  // ---- connection ---------------------------------------------------------
+  function connect(nick) {
+    const scheme = location.protocol === "https:" ? "wss" : "ws";
+    ws = new WebSocket(`${scheme}://${location.host}/ws`);
+    ws.onopen = () => send({ type: "nick", name: nick });
+    ws.onmessage = (event) => handle(JSON.parse(event.data));
+    ws.onclose = () => {
+      setConnected(false);
+      if (!me) {
+        $("join-error").textContent = "Could not reach the chat server.";
+        $("join-btn").disabled = false;
+      } else {
+        addSystem("Disconnected from server. Press Leave and join again to reconnect.", true);
+      }
+    };
+  }
+
+  function send(message) {
+    if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(message));
+  }
+
+  function setConnected(on) {
+    $("dot").classList.toggle("off", !on);
+    $("conn").textContent = on ? "Connected" : "Disconnected";
+  }
+
+  // ---- incoming messages --------------------------------------------------
+  function handle(m) {
+    switch (m.type) {
+      case "welcome":
+        me = m.name;
+        $("me").textContent = me;
+        $("join").classList.add("hidden");
+        $("chat").classList.remove("hidden");
+        setConnected(true);
+        addSystem(`Welcome, ${me}! Select a user to send a private message, or type /help.`);
+        $("input").focus();
+        break;
+      case "error":
+        if (!me) { $("join-error").textContent = m.text; $("join-btn").disabled = false; }
+        else addSystem(m.text, true);
+        break;
+      case "users":
+        users = m.users.filter((u) => u !== me);
+        if (target && !users.includes(target)) setTarget(EVERYONE);
+        renderUsers();
+        break;
+      case "public":
+        addMessage(m.from, m.text, { mine: m.from === me });
+        break;
+      case "private": {
+        const mine = m.from === me;
+        if (!mine) {
+          lastSender = m.from;
+          if (target !== m.from) { unread[m.from] = (unread[m.from] || 0) + 1; renderUsers(); }
+        }
+        addMessage(m.from, m.text, {
+          mine, private: true,
+          label: mine ? `Private to ${m.to}` : `Private from ${m.from}`,
+        });
+        break;
+      }
+      default:
+        addSystem(m.text || "");
+    }
+  }
+
+  // ---- rendering ----------------------------------------------------------
+  function colorFor(name) {
+    let h = 0;
+    for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) % 360;
+    return `hsl(${h} 55% 45%)`;
+  }
+
+  function userButton(name, label, count) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "user" + (target === name ? " active" : "");
+    const av = document.createElement("span");
+    av.className = "avatar";
+    av.style.background = name ? colorFor(name) : "var(--muted)";
+    av.textContent = name ? name[0].toUpperCase() : "#";
+    const text = document.createElement("span");
+    text.className = "label";
+    text.textContent = label;
+    b.append(av, text);
+    if (count) {
+      const badge = document.createElement("span");
+      badge.className = "badge";
+      badge.textContent = count;
+      b.append(badge);
+    }
+    b.onclick = () => { setTarget(name); $("input").focus(); };
+    return b;
+  }
+
+  function renderUsers() {
+    const box = $("users");
+    box.replaceChildren(userButton(EVERYONE, `Everyone (${users.length + 1} online)`));
+    for (const u of users) box.append(userButton(u, u, unread[u]));
+  }
+
+  function setTarget(name) {
+    target = name;
+    if (name) delete unread[name];
+    const pill = $("target");
+    pill.className = "pill" + (name ? " private" : "");
+    pill.replaceChildren(document.createTextNode(name ? `🔒 ${name} (private)` : "Everyone"));
+    if (name) {
+      const x = document.createElement("button");
+      x.type = "button"; x.title = "Back to everyone"; x.textContent = "✕";
+      x.onclick = () => setTarget(EVERYONE);
+      pill.append(x);
+    }
+    $("input").placeholder = name ? `Private message to ${name}…` : "Type a message… (/help for commands)";
+    renderUsers();
+  }
+
+  function scrollDown() {
+    const log = $("log");
+    log.scrollTop = log.scrollHeight;
+  }
+
+  function addMessage(from, text, opts) {
+    const wrap = document.createElement("div");
+    wrap.className = "msg" + (opts.mine ? " mine" : "") + (opts.private ? " private" : "");
+    const meta = document.createElement("div");
+    meta.className = "meta";
+    const time = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    meta.textContent = `${opts.label || (opts.mine ? "You" : from)} · ${time}`;
+    const bubble = document.createElement("div");
+    bubble.className = "bubble";
+    bubble.textContent = text;
+    wrap.append(meta, bubble);
+    $("log").append(wrap);
+    scrollDown();
+  }
+
+  function addSystem(text, isError) {
+    const div = document.createElement("div");
+    div.className = "system" + (isError ? " error" : "");
+    div.textContent = text;
+    $("log").append(div);
+    scrollDown();
+  }
+
+  // ---- outgoing: same commands as the terminal client (protocol.parse_input) ----
+  const PRIVATE = ["/msg", "/w", "/pm", "/whisper", "/tell"];
+
+  function privateMsg(to, text) {
+    to = (to || "").trim(); text = (text || "").trim();
+    if (!to || !text) throw new Error("Usage: /msg <user> <message>");
+    return { type: "private", to, text };
+  }
+
+  function splitFirst(s) {
+    const i = s.indexOf(" ");
+    return i < 0 ? [s, ""] : [s.slice(0, i), s.slice(i + 1)];
+  }
+
+  function parseInput(line) {
+    line = line.trim();
+    if (!line) return null;
+    if (line.startsWith("@") && line.length > 1) return privateMsg(...splitFirst(line.slice(1)));
+    if (!line.startsWith("/")) {
+      return target ? privateMsg(target, line) : { type: "public", text: line };
+    }
+    let [cmd, rest] = splitFirst(line);
+    cmd = cmd.toLowerCase(); rest = rest.trim();
+    if (PRIVATE.includes(cmd)) return privateMsg(...splitFirst(rest));
+    if (cmd === "/r" || cmd === "/reply") {
+      if (!lastSender) throw new Error("Nobody has sent you a private message yet.");
+      return privateMsg(lastSender, rest);
+    }
+    if (["/users", "/who", "/list"].includes(cmd)) return { type: "users" };
+    if (cmd === "/help" || cmd === "/?") return { type: "help" };
+    if (cmd === "/quit" || cmd === "/exit") return { type: "quit" };
+    throw new Error(`Unknown command ${cmd}. Type /help for a list.`);
+  }
+
+  // ---- UI events ----------------------------------------------------------
+  $("join-form").onsubmit = (e) => {
+    e.preventDefault();
+    const nick = $("nick").value.trim();
+    if (!nick) return;
+    $("join-error").textContent = "";
+    $("join-btn").disabled = true;
+    if (ws && ws.readyState === WebSocket.OPEN) send({ type: "nick", name: nick });
+    else connect(nick);
+  };
+
+  $("send-form").onsubmit = (e) => {
+    e.preventDefault();
+    const input = $("input");
+    let message;
+    try { message = parseInput(input.value); }
+    catch (err) { addSystem(err.message, true); return; }
+    input.value = "";
+    if (!message) return;
+    if (message.type === "help") return addSystem(HELP);
+    if (message.type === "quit") return leave();
+    if (message.type === "users") {
+      return addSystem("Online: " + [me, ...users].sort((a, b) => a.localeCompare(b)).join(", "));
+    }
+    if (message.type === "private" && unread[message.to]) {
+      delete unread[message.to];
+      renderUsers();
+    }
+    send(message);
+  };
+
+  function leave() {
+    if (ws) { ws.onclose = null; send({ type: "quit" }); ws.close(); ws = null; }
+    me = null; users = []; lastSender = null; target = EVERYONE;
+    for (const k of Object.keys(unread)) delete unread[k];
+    $("log").replaceChildren();
+    $("chat").classList.add("hidden");
+    $("join").classList.remove("hidden");
+    $("join-btn").disabled = false;
+    $("nick").focus();
+  }
+  $("leave").onclick = leave;
+
+  setTarget(EVERYONE);
+  $("nick").focus();
+})();
+</script>
+</body>
+</html>

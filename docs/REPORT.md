@@ -1,13 +1,13 @@
 # Mini Project Report: Chat Room with Private Messages
 
 **Subject:** Computer Networks
-**Language:** Python 3.10+ (standard library only: `socket`, `socketserver`, `threading`, `json`, `tkinter`)
+**Language:** Python 3.10+ (standard library only: `socket`, `socketserver`, `http.server`, `threading`, `json`, `hashlib`, `tkinter`) + HTML/CSS/JavaScript for the website
 
 ---
 
 ## 1. Abstract
 
-This project is a client–server chat application that runs over **TCP/IP sockets**. Many clients connect to one central server. Each client can send **public messages**, which the server delivers to every connected user, and **private messages**, which the server delivers only to the named recipient. Users can send private messages with text commands (`/msg`, `@user`, `/r`) in a terminal client, or by selecting a user in a Tkinter GUI client. The project covers the main concepts of the transport and application layers: sockets, ports, connection-oriented communication, concurrent servers, message framing and application-layer protocol design.
+This project is a client–server chat application that runs over **TCP/IP sockets**. Many clients connect to one central server. Each client can send **public messages**, which the server delivers to every connected user, and **private messages**, which the server delivers only to the named recipient. Users can send private messages with text commands (`/msg`, `@user`, `/r`) in a terminal client, by selecting a user in a Tkinter GUI client, or from a **website** that any laptop or phone on the network can open in a browser. The website talks to the server over **WebSocket**, which we implement from scratch (HTTP upgrade handshake + frame encoding). Browser users and terminal/GUI users share one chat room, so they can message each other. The project covers the main concepts of the transport and application layers: sockets, ports, connection-oriented communication, concurrent servers, message framing and application-layer protocol design.
 
 ## 2. Objectives
 
@@ -17,6 +17,7 @@ This project is a client–server chat application that runs over **TCP/IP socke
 4. Provide a command interface (CLI) and a graphical interface (GUI) for sending private messages.
 5. Handle errors: unknown users, duplicate nicknames, malformed data and abrupt disconnects.
 6. Allow communication between different computers on the same LAN.
+7. Provide a website so a second laptop needs only a browser, by implementing the WebSocket protocol (RFC 6455) on top of TCP.
 
 ## 3. Networking concepts used
 
@@ -70,6 +71,42 @@ TCP is a **byte stream**, not a message stream. One `send()` may arrive as sever
 
 This is an application-layer version of the unicast and broadcast addressing used at lower layers (for example the Ethernet broadcast address `FF:FF:FF:FF:FF:FF` compared with a specific MAC address).
 
+### 3.7 HTTP and WebSocket (the website)
+A browser can't open a raw TCP socket, so the website uses **HTTP** and **WebSocket**, which are both application-layer protocols that run on top of TCP. The server listens on a second port, **8000**:
+
+1. **HTTP GET /**: the browser downloads the chat page (`chat/static/index.html`), a normal HTTP request/response.
+2. **HTTP GET /ws with `Upgrade: websocket`**: the page asks to switch protocols. It sends a random `Sec-WebSocket-Key`, and the server answers `101 Switching Protocols` with
+   `Sec-WebSocket-Accept = base64( SHA-1( key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11" ) )`.
+   This proves the server really speaks WebSocket. After this, **the same TCP connection** stays open and carries WebSocket frames instead of HTTP.
+3. **Frames**: every message is sent in a frame:
+
+```
+ 0                   1                   2                   3
++-+-+-+-+-------+-+-------------+-------------------------------+
+|F|R|R|R| opcode|M| Payload len |    Extended payload length    |
+|I|S|S|S|  (4)  |A|     (7)     |   (16/64 bits, if len=126/127)|
+|N|V|V|V|       |S|             |                               |
++-+-+-+-+-------+-+-------------+-------------------------------+
+|  Masking key (4 bytes, only client -> server)  |  Payload ... |
++------------------------------------------------+--------------+
+```
+
+* `opcode`: `1` = text, `8` = close, `9` = ping, `A` = pong. The server answers pings with pongs.
+* **Masking:** browsers XOR every payload byte with a random 4-byte key (`byte ^ key[i % 4]`). This stops proxies from mistaking the data for HTTP (cache poisoning). The server unmasks the data, and server→client frames are not masked.
+* The payload of each text frame is one JSON message of **the same protocol as the TCP clients** (Section 4). So the server needs only one routing core (`Session` + `ChatRoom`), and it doesn't matter whether a user is connected by raw TCP or WebSocket.
+
+**Why not just HTTP polling?** With plain HTTP the browser would have to keep asking "any new messages?". WebSocket keeps one **full-duplex** TCP connection open, so the server can **push** a private message to the recipient immediately.
+
+```
+ Laptop A (browser)             Laptop B (server)                Laptop C (terminal)
+ http://192.168.0.39:8000       port 8000  (HTTP + WebSocket)     --host 192.168.0.39
+        |---- GET / ------------->|                                      |
+        |<--- 200 index.html -----|                                      |
+        |---- GET /ws Upgrade --->|                                      |
+        |<--- 101 Switching ------|         port 5000 (raw TCP) <--------|
+        |== WS frame {private,to:carol} ==> ChatRoom ==== JSON line ====>|
+```
+
 ## 4. Application protocol design
 
 All messages are JSON objects with a `type` field.
@@ -120,12 +157,14 @@ chat/
   server.py      ChatServer (threaded TCP), ChatRoom (user table + routing)
   client.py      ChatConnection (socket + receiver thread) and terminal client
   gui_client.py  Tkinter GUI: chat log, online-user list, input box
+  web.py         HTTP server + hand-written WebSocket (handshake, framing, ping/pong)
+  static/index.html  the website: join screen, user list, chat, private messages
 demo.py          scripted demo with 3 clients
-tests/           unit + integration tests over real sockets
+tests/           unit + integration tests over real sockets (incl. raw WebSocket frames)
 ```
 
 **Server algorithm**
-1. Bind to `host:port` and listen.
+1. Bind to `host:5000` (raw TCP) and `host:8000` (HTTP/WebSocket) and listen. Both share one `ChatRoom`.
 2. For each accepted connection, start a thread that:
    1. reads lines until the client sends a valid, unused nickname;
    2. announces the join and sends the new user list to everyone;
@@ -146,6 +185,10 @@ tests/           unit + integration tests over real sockets
 
 **GUI:** the right-hand panel lists *Everyone* plus every online user. Select a user to make what you type private, or double-click to jump to the input box. Private messages show in purple, and system notices in grey italics.
 
+**Website:** a join screen asks for a nickname. The left panel (a row of buttons on phones) lists *Everyone* and every online user. Click a user to switch the message box to **private** mode (a purple 🔒 pill shows who you're messaging), or click ✕ to go back to everyone. Private messages appear as purple bubbles labelled *Private to/from …*. A badge counts unread private messages from each user. The same commands (`/msg`, `@user`, `/r`, `/users`, `/help`) work in the message box, and the page follows the system light/dark theme.
+
+![Website screenshot](web-screenshot.png)
+
 ## 7. How to run
 
 On one machine (three terminals):
@@ -162,6 +205,12 @@ python -m chat.gui_client --host 192.168.1.10
 ```
 If they can't connect, allow TCP port 5000 through the server machine's firewall.
 
+**Two laptops with the website (no Python on the second laptop):**
+1. Connect both laptops to the same Wi-Fi.
+2. On laptop A, run `python -m chat.server`. It prints `Website: open http://192.168.x.x:8000 ...`.
+3. On laptop A and laptop B, open that address in a browser and join with different nicknames.
+4. If laptop B can't load the page, allow Python (TCP port 8000) through laptop A's firewall.
+
 Quick demo in one terminal: `python demo.py`
 Tests: `python -m unittest -v`
 
@@ -177,6 +226,12 @@ Tests: `python -m unittest -v`
 | Duplicate nickname (case-insensitive) | rejected, user may retry | Pass |
 | Client closes abruptly | server removes the user and notifies the others | Pass |
 | Command parsing (`/msg`, `/w`, `@user`, bad input) | correct message or usage error | Pass |
+| WebSocket accept key | matches the RFC 6455 example (`s3pPLMBiTxaQ9kYGzzhZRbK+xOo=`) | Pass |
+| WebSocket handshake | `101 Switching Protocols` with the correct accept header | Pass |
+| Private message between two browsers | only the recipient browser receives it | Pass |
+| Ping frame | server replies with a pong frame | Pass |
+| Browser ↔ terminal private messages | delivered in both directions (shared room) | Pass |
+| Website in a real browser (Chromium, 3 windows incl. phone width) | private messages hidden from the third user, duplicate nickname rejected | Pass |
 
 Sample output of `python demo.py`:
 ```
@@ -189,7 +244,7 @@ carol has no line here, which shows the message was unicast.
 
 ## 9. Limitations and future work
 
-* Messages are sent in **plain text**. Wrapping the sockets with TLS (`ssl.wrap_socket` / `SSLContext`) would encrypt them.
+* Messages are sent in **plain text**. Wrapping the sockets with TLS (`ssl.SSLContext`) would encrypt them, and the website would then use `https://` and `wss://`.
 * No authentication: anyone can pick any free nickname.
 * Thread-per-client is simple, but for thousands of users an event-driven design (`select`/`asyncio`) scales better.
 * Possible additions: chat rooms/channels, file transfer, message history, offline messages.
@@ -206,3 +261,8 @@ carol has no line here, which shows the message was unicast.
 8. **What happens if a client crashes?** `recv()` returns EOF or raises an error. The server thread's `finally` block removes the user and tells the others.
 9. **`0.0.0.0` vs `127.0.0.1`?** `0.0.0.0` listens on all interfaces (LAN reachable). `127.0.0.1` is loopback only.
 10. **Which OSI/TCP-IP layer is our protocol at?** The application layer. It runs over TCP (transport) and IP (network).
+11. **How does a browser talk to our server?** Over HTTP first (to load the page), then it upgrades the same TCP connection to WebSocket using the `Upgrade` header and a `101 Switching Protocols` response.
+12. **How is `Sec-WebSocket-Accept` computed?** base64(SHA-1(client key + the fixed GUID `258EAFA5-E914-47DA-95CA-C5AB0DC85B11`)).
+13. **Why are browser frames masked?** So that intermediaries such as proxies can't be tricked into treating attacker-controlled bytes as HTTP (cache poisoning). Server frames aren't masked.
+14. **WebSocket vs HTTP polling?** WebSocket is one persistent full-duplex connection with small frame headers, so the server can push messages instantly. Polling repeats full HTTP requests and adds delay.
+15. **Why two ports (5000 and 8000)?** Port 5000 speaks our raw line-based protocol for Python clients. Port 8000 speaks HTTP/WebSocket for browsers. Both deliver the same JSON messages into one shared room.
