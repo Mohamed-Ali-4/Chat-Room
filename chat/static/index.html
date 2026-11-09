@@ -2,357 +2,765 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#4f46e5">
 <title>Chat Room</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%234f46e5'/%3E%3Cpath d='M9 10h14a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-7l-5 4v-4H9a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2z' fill='white'/%3E%3C/svg%3E">
 <style>
   :root {
-    --bg: #f4f5f7; --panel: #ffffff; --text: #1d2129; --muted: #6b7280;
-    --border: #e3e5e8; --accent: #2563eb; --accent-text: #ffffff;
-    --mine: #2563eb; --mine-text: #ffffff; --theirs: #eef0f3;
-    --private: #7c3aed; --private-bg: #f3edff; --error: #c62828; --ok: #16a34a;
+    --bg: #eef0f6; --panel: #ffffff; --panel-2: #f7f8fb; --hover: #f0f2f7; --text: #161a23;
+    --muted: #697084; --faint: #9aa1b2; --border: #e4e7ef;
+    --accent: #4f46e5; --accent-2: #7c3aed; --accent-soft: #eef0ff; --on-accent: #ffffff;
+    --private: #9333ea; --private-soft: #f6efff;
+    --bubble: #ffffff; --bubble-border: #e7e9f0;
+    --online: #22c55e; --error: #dc2626; --error-soft: #fef2f2; --warn-soft: #fff7e6; --warn: #b45309;
+    --shadow: 0 1px 2px rgba(16, 24, 40, .06), 0 8px 24px rgba(16, 24, 40, .08);
+    --radius: 16px;
+    color-scheme: light;
   }
   @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #0f1115; --panel: #181b21; --text: #e6e8eb; --muted: #9aa1ab;
-      --border: #2a2f37; --accent: #4f8cff; --mine: #3b74e8; --theirs: #232831;
-      --private: #a78bfa; --private-bg: #2a2140; --error: #ff6b6b; --ok: #34d399;
+    :root:not([data-theme="light"]) {
+      --bg: #0b0d13; --panel: #13161e; --panel-2: #181c26; --hover: #1d2230; --text: #e8eaf0;
+      --muted: #a0a7b8; --faint: #6b7385; --border: #252a37;
+      --accent: #6d64ff; --accent-2: #a855f7; --accent-soft: #1f1f3d;
+      --private: #c084fc; --private-soft: #261a3a;
+      --bubble: #1b1f2a; --bubble-border: #272c3a;
+      --error: #f87171; --error-soft: #2a1515; --warn-soft: #2a2110; --warn: #fbbf24;
+      --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 24px rgba(0, 0, 0, .35);
+      color-scheme: dark;
     }
   }
+  :root[data-theme="dark"] {
+    --bg: #0b0d13; --panel: #13161e; --panel-2: #181c26; --hover: #1d2230; --text: #e8eaf0;
+    --muted: #a0a7b8; --faint: #6b7385; --border: #252a37;
+    --accent: #6d64ff; --accent-2: #a855f7; --accent-soft: #1f1f3d;
+    --private: #c084fc; --private-soft: #261a3a;
+    --bubble: #1b1f2a; --bubble-border: #272c3a;
+    --error: #f87171; --error-soft: #2a1515; --warn-soft: #2a2110; --warn: #fbbf24;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 24px rgba(0, 0, 0, .35);
+    color-scheme: dark;
+  }
+
   * { box-sizing: border-box; }
   html, body { height: 100%; margin: 0; }
   body {
-    background: var(--bg); color: var(--text);
-    font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased;
+    font: 15px/1.5 Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   }
   button, input { font: inherit; color: inherit; }
   button { cursor: pointer; }
+  svg { flex: none; }
   .hidden { display: none !important; }
+  .icon-btn {
+    display: grid; place-items: center; width: 36px; height: 36px; border-radius: 10px;
+    border: 0; background: transparent; color: var(--muted);
+  }
+  .icon-btn:hover { background: var(--hover); color: var(--text); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-  /* Join screen */
-  #join { min-height: 100%; display: grid; place-items: center; padding: 16px; }
-  .card {
-    width: 100%; max-width: 380px; background: var(--panel); border: 1px solid var(--border);
-    border-radius: 14px; padding: 28px 24px;
+  /* ---------- Join screen ---------- */
+  #join {
+    position: relative; min-height: 100%; display: grid; place-items: center; padding: 24px 16px; overflow: hidden;
   }
-  .card h1 { margin: 0 0 4px; font-size: 22px; }
-  .card p { margin: 0 0 20px; color: var(--muted); font-size: 14px; }
-  .card label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
-  .field {
-    width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border);
-    background: var(--bg); outline: none;
+  #join::before, #join::after {
+    content: ""; position: absolute; width: 520px; height: 520px; border-radius: 50%;
+    filter: blur(90px); opacity: .45; pointer-events: none;
   }
-  .field:focus { border-color: var(--accent); }
-  .primary {
-    width: 100%; margin-top: 14px; padding: 10px; border: 0; border-radius: 8px;
-    background: var(--accent); color: var(--accent-text); font-weight: 600;
+  #join::before { background: var(--accent); top: -180px; left: -160px; }
+  #join::after { background: var(--accent-2); bottom: -200px; right: -160px; }
+  .join-card {
+    position: relative; z-index: 1; width: 100%; max-width: 420px; background: var(--panel);
+    border: 1px solid var(--border); border-radius: 24px; padding: 36px 32px 28px; box-shadow: var(--shadow);
+    animation: rise .4s ease-out;
   }
-  .primary:disabled { opacity: .6; cursor: default; }
-  #join-error { color: var(--error); font-size: 13px; min-height: 18px; margin-top: 10px; }
-  .server-info { margin-top: 18px; font-size: 12px; color: var(--muted); }
+  @keyframes rise { from { opacity: 0; transform: translateY(12px); } }
+  .logo {
+    width: 56px; height: 56px; border-radius: 16px; display: grid; place-items: center; color: #fff;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2)); box-shadow: 0 10px 24px -8px var(--accent);
+  }
+  .join-card h1 { margin: 20px 0 6px; font-size: 26px; letter-spacing: -.02em; }
+  .join-card .lead { margin: 0 0 22px; color: var(--muted); }
+  .features { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 26px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px;
+    background: var(--panel-2); border: 1px solid var(--border); font-size: 12.5px; color: var(--muted);
+  }
+  .chip svg { color: var(--accent); }
+  label.field-label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 8px; }
+  .input {
+    width: 100%; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--border);
+    background: var(--panel-2); outline: none; transition: border-color .15s, box-shadow .15s;
+  }
+  .input:focus { border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
+  .btn-primary {
+    display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; margin-top: 14px;
+    padding: 12px; border: 0; border-radius: 12px; font-weight: 600; color: var(--on-accent);
+    background: linear-gradient(135deg, var(--accent), var(--accent-2)); transition: filter .15s, transform .05s;
+  }
+  .btn-primary:hover { filter: brightness(1.08); }
+  .btn-primary:active { transform: translateY(1px); }
+  .btn-primary:disabled { opacity: .6; cursor: progress; }
+  #join-error { color: var(--error); font-size: 13.5px; min-height: 20px; margin-top: 12px; }
+  .join-foot {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 10px;
+    padding-top: 16px; border-top: 1px solid var(--border); font-size: 12.5px; color: var(--faint);
+  }
+  .join-foot code { color: var(--muted); }
 
-  /* Chat screen */
-  #chat { height: 100%; display: grid; grid-template-rows: auto 1fr; }
-  header {
-    display: flex; align-items: center; gap: 12px; padding: 10px 16px;
+  /* ---------- App shell ---------- */
+  #app { height: 100%; height: 100dvh; display: grid; grid-template-columns: 320px 1fr; }
+  #app.hidden { display: none; }
+
+  .sidebar {
+    display: flex; flex-direction: column; min-height: 0; background: var(--panel); border-right: 1px solid var(--border);
+  }
+  .brand { display: flex; align-items: center; gap: 10px; padding: 18px 18px 12px; }
+  .brand .logo { width: 34px; height: 34px; border-radius: 10px; box-shadow: none; }
+  .brand strong { font-size: 17px; letter-spacing: -.01em; flex: 1; }
+  .search { position: relative; margin: 4px 14px 10px; }
+  .search svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--faint); }
+  .search input { padding: 9px 12px 9px 36px; font-size: 14px; }
+  .list { flex: 1; overflow-y: auto; padding: 0 8px 12px; }
+  .section {
+    display: flex; justify-content: space-between; margin: 14px 10px 6px; font-size: 11.5px; font-weight: 700;
+    letter-spacing: .06em; text-transform: uppercase; color: var(--faint);
+  }
+  .item {
+    display: flex; align-items: center; gap: 12px; width: 100%; padding: 9px 10px; border: 0; border-radius: 12px;
+    background: transparent; text-align: left; transition: background .12s;
+  }
+  .item:hover { background: var(--hover); }
+  .item.active { background: var(--accent-soft); }
+  .item.active .item-name { color: var(--accent); }
+  .item.offline { opacity: .55; }
+  .item-main { flex: 1; min-width: 0; }
+  .item-top { display: flex; align-items: baseline; gap: 6px; }
+  .item-name { flex: 1; font-weight: 600; font-size: 14.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .item-time { font-size: 11.5px; color: var(--faint); }
+  .item-sub { display: flex; align-items: center; gap: 6px; }
+  .item-preview { flex: 1; font-size: 13px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .unread .item-preview { color: var(--text); font-weight: 500; }
+  .badge {
+    min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; display: grid; place-items: center;
+    background: var(--accent); color: var(--on-accent); font-size: 11.5px; font-weight: 700;
+  }
+  .badge.private { background: var(--private); }
+  .empty-list { margin: 6px 12px; font-size: 13px; color: var(--faint); }
+
+  .avatar {
+    position: relative; flex: none; width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center;
+    color: #fff; font-weight: 700; font-size: 15px; text-transform: uppercase; user-select: none;
+  }
+  .avatar.sm { width: 32px; height: 32px; font-size: 13px; }
+  .avatar.channel { border-radius: 12px; background: linear-gradient(135deg, var(--accent), var(--accent-2)); }
+  .avatar .dot {
+    position: absolute; right: -1px; bottom: -1px; width: 12px; height: 12px; border-radius: 50%;
+    background: var(--online); border: 2px solid var(--panel);
+  }
+  .avatar.sm .dot { width: 10px; height: 10px; }
+
+  .me-card {
+    display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-top: 1px solid var(--border); background: var(--panel-2);
+  }
+  .me-card .who { flex: 1; min-width: 0; line-height: 1.25; }
+  .me-card .who strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .me-card .who span { font-size: 12px; color: var(--muted); }
+  .conn-ok { color: var(--online) !important; }
+  .conn-bad { color: var(--warn) !important; }
+
+  /* ---------- Conversation ---------- */
+  .convo { display: flex; flex-direction: column; min-height: 0; min-width: 0; background: var(--bg); }
+  .convo-head {
+    display: flex; align-items: center; gap: 12px; padding: 12px 20px; min-height: 68px;
     background: var(--panel); border-bottom: 1px solid var(--border);
   }
-  header h2 { margin: 0; font-size: 17px; flex: 1; }
-  .status { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
-  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); }
-  .dot.off { background: var(--error); }
-  .ghost { background: none; border: 1px solid var(--border); border-radius: 8px; padding: 5px 10px; font-size: 13px; }
+  .convo-head .title { flex: 1; min-width: 0; line-height: 1.3; }
+  .convo-head .title strong { display: block; font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .convo-head .title span { font-size: 13px; color: var(--muted); }
+  .lock-tag {
+    display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px;
+    background: var(--private-soft); color: var(--private); font-size: 12.5px; font-weight: 600; white-space: nowrap;
+  }
+  .stack { display: flex; }
+  .stack .avatar { width: 28px; height: 28px; font-size: 11px; border: 2px solid var(--panel); margin-left: -8px; }
+  .stack .more { background: var(--hover); color: var(--muted); }
+  #back { display: none; }
 
-  .layout { display: grid; grid-template-columns: 220px 1fr; min-height: 0; }
-  aside {
-    background: var(--panel); border-right: 1px solid var(--border); padding: 12px 8px; overflow-y: auto;
+  .banner {
+    display: flex; align-items: center; gap: 8px; padding: 8px 20px; font-size: 13.5px;
+    background: var(--warn-soft); color: var(--warn); border-bottom: 1px solid var(--border);
   }
-  aside h3 { margin: 4px 8px 8px; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
-  .user {
-    display: flex; align-items: center; gap: 8px; width: 100%; text-align: left;
-    background: none; border: 0; border-radius: 8px; padding: 8px 10px; margin-bottom: 2px;
+  .spinner {
+    width: 14px; height: 14px; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent;
+    animation: spin .8s linear infinite;
   }
-  .user:hover { background: var(--bg); }
-  .user.active { background: var(--accent); color: var(--accent-text); }
-  .avatar {
-    flex: none; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center;
-    font-size: 12px; font-weight: 700; color: #fff;
-  }
-  .user .label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .badge {
-    background: var(--private); color: #fff; border-radius: 10px; font-size: 11px;
-    font-weight: 700; padding: 1px 7px;
-  }
-  .hint { margin: 14px 8px 0; font-size: 12px; color: var(--muted); }
+  @keyframes spin { to { transform: rotate(360deg); } }
 
-  main { display: grid; grid-template-rows: 1fr auto; min-height: 0; }
-  #log { overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 6px; }
-  .msg { max-width: min(560px, 85%); align-self: flex-start; }
-  .msg.mine { align-self: flex-end; }
-  .meta { font-size: 12px; color: var(--muted); margin: 0 4px 2px; }
-  .mine .meta { text-align: right; }
+  #log { flex: 1; min-height: 0; overflow-y: auto; padding: 20px 20px 8px; display: flex; flex-direction: column; }
+  .row { display: flex; gap: 10px; align-items: flex-end; margin-top: 14px; animation: pop .18s ease-out; }
+  .row.cont { margin-top: 3px; }
+  .row.mine { flex-direction: row-reverse; }
+  @keyframes pop { from { opacity: 0; transform: translateY(4px); } }
+  .row .gutter { width: 32px; flex: none; }
+  .row-body { display: flex; flex-direction: column; max-width: min(620px, 78%); min-width: 0; }
+  .mine .row-body { align-items: flex-end; }
+  .row-head { display: flex; gap: 8px; align-items: baseline; margin: 0 4px 4px; font-size: 12.5px; }
+  .row-head strong { font-size: 13.5px; }
+  .row-head time { color: var(--faint); }
   .bubble {
-    padding: 8px 12px; border-radius: 14px; background: var(--theirs);
-    white-space: pre-wrap; overflow-wrap: anywhere;
+    padding: 9px 14px; border-radius: 18px; background: var(--bubble); border: 1px solid var(--bubble-border);
+    white-space: pre-wrap; overflow-wrap: anywhere; box-shadow: 0 1px 1px rgba(16, 24, 40, .04);
   }
-  .mine .bubble { background: var(--mine); color: var(--mine-text); }
-  .private .bubble { background: var(--private-bg); color: var(--text); border: 1px solid var(--private); }
-  .private .meta { color: var(--private); font-weight: 600; }
-  .system { align-self: center; font-size: 13px; color: var(--muted); text-align: center; white-space: pre-wrap; }
-  .system.error { color: var(--error); }
+  .row:not(.mine) .bubble { border-bottom-left-radius: 6px; }
+  .mine .bubble {
+    border: 0; color: var(--on-accent); border-bottom-right-radius: 6px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  }
+  .is-private .mine .bubble { background: linear-gradient(135deg, var(--accent-2), var(--private)); }
+  .is-private .row:not(.mine) .bubble { background: var(--private-soft); border-color: transparent; }
+  .row.cont .bubble { border-radius: 18px; }
+  .row .bubble[title] { cursor: default; }
 
-  .composer { border-top: 1px solid var(--border); background: var(--panel); padding: 10px 16px 14px; }
-  .target { display: flex; align-items: center; gap: 8px; font-size: 13px; margin-bottom: 8px; color: var(--muted); }
-  .pill { border-radius: 999px; padding: 2px 10px; font-weight: 600; background: var(--bg); color: var(--text); }
-  .pill.private { background: var(--private-bg); color: var(--private); }
-  .pill button { border: 0; background: none; padding: 0 0 0 6px; color: inherit; }
-  form { display: flex; gap: 8px; }
-  form .field { flex: 1; background: var(--bg); }
-  form .primary { width: auto; margin: 0; padding: 0 18px; }
+  .sys {
+    align-self: center; margin: 14px 0 2px; padding: 4px 12px; border-radius: 999px; font-size: 12.5px;
+    color: var(--muted); background: var(--panel); border: 1px solid var(--border); text-align: center; max-width: 90%;
+  }
+  .sys.error { color: var(--error); background: var(--error-soft); border-color: transparent; }
+  .sys.help { white-space: pre-wrap; text-align: left; border-radius: 12px; font: 12.5px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; padding: 10px 14px; }
 
-  @media (max-width: 640px) {
-    .layout { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
-    aside { border-right: 0; border-bottom: 1px solid var(--border); padding: 8px; display: flex; gap: 6px; overflow-x: auto; }
-    aside h3, .hint { display: none; }
-    #users { display: flex; gap: 6px; }
-    .user { width: auto; margin: 0; white-space: nowrap; }
-    header .me { display: none; }
+  .empty {
+    margin: auto; text-align: center; max-width: 340px; padding: 24px; color: var(--muted);
+  }
+  .empty .big {
+    width: 72px; height: 72px; margin: 0 auto 16px; border-radius: 22px; display: grid; place-items: center;
+    background: var(--private-soft); color: var(--private);
+  }
+  .empty.public .big { background: var(--accent-soft); color: var(--accent); }
+  .empty h3 { margin: 0 0 6px; color: var(--text); font-size: 17px; }
+  .empty p { margin: 0; font-size: 14px; }
+
+  .composer { padding: 10px 20px 18px; }
+  .composer form {
+    display: flex; align-items: center; gap: 8px; padding: 6px 6px 6px 16px; border-radius: 16px;
+    background: var(--panel); border: 1px solid var(--border); box-shadow: var(--shadow); transition: border-color .15s;
+  }
+  .composer form:focus-within { border-color: var(--accent); }
+  .composer input { flex: 1; min-width: 0; border: 0; outline: none; background: transparent; padding: 8px 0; }
+  .send {
+    width: 40px; height: 40px; border: 0; border-radius: 12px; display: grid; place-items: center; color: #fff;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2)); transition: filter .15s, opacity .15s;
+  }
+  .send:disabled { opacity: .4; cursor: default; }
+  .send:not(:disabled):hover { filter: brightness(1.1); }
+  .composer .hint { margin: 8px 6px 0; font-size: 12px; color: var(--faint); }
+  .composer .hint kbd {
+    font: 11px ui-monospace, monospace; padding: 1px 5px; border-radius: 5px; border: 1px solid var(--border); background: var(--panel);
+  }
+
+  /* ---------- Toasts ---------- */
+  #toasts { position: fixed; right: 20px; top: 80px; display: flex; flex-direction: column; gap: 10px; z-index: 10; }
+  .toast {
+    display: flex; align-items: center; gap: 12px; width: 300px; max-width: calc(100vw - 32px); padding: 12px 14px;
+    border: 1px solid var(--border); border-radius: 14px; background: var(--panel); box-shadow: var(--shadow);
+    text-align: left; animation: slide .25s ease-out;
+  }
+  .toast .t-body { min-width: 0; flex: 1; }
+  .toast .t-title { font-size: 12.5px; font-weight: 700; color: var(--private); }
+  .toast .t-text { font-size: 13.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  @keyframes slide { from { opacity: 0; transform: translateY(-10px); } }
+
+  /* ---------- Mobile ---------- */
+  @media (max-width: 760px) {
+    #app { grid-template-columns: 1fr; }
+    #app .convo { display: none; }
+    #app.show-convo .sidebar { display: none; }
+    #app.show-convo .convo { display: flex; }
+    #back { display: grid; margin-left: -8px; }
+    .convo-head { padding: 10px 12px; }
+    .convo-head .stack, .composer .hint { display: none; }
+    #log { padding: 14px 12px 6px; }
+    .composer { padding: 8px 10px calc(10px + env(safe-area-inset-bottom)); }
+    .row-body { max-width: 85%; }
+    .join-card { padding: 28px 22px 22px; }
+    #toasts { left: 16px; right: 16px; top: 72px; }
+    .toast { width: 100%; }
   }
 </style>
 </head>
 <body>
 
+<!-- Icons -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-logo" viewBox="0 0 24 24"><path fill="currentColor" d="M5 4h14a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3h-7.6L6 21.6V18H5a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3zm3 6.5a1.5 1.5 0 1 0 0 .01zm4 0a1.5 1.5 0 1 0 0 .01zm4 0a1.5 1.5 0 1 0 0 .01z"/></symbol>
+  <symbol id="i-hash" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M5 9h15M4 15h15M10 3 8 21M16 3l-2 18"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M6 11h12v9H6zM8.5 11V8a3.5 3.5 0 0 1 7 0v3"/></symbol>
+  <symbol id="i-bolt" viewBox="0 0 24 24"><path fill="currentColor" d="M13 2 4 14h7l-1 8 9-12h-7z"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M16 20v-1.5a3.5 3.5 0 0 0-3.5-3.5h-5A3.5 3.5 0 0 0 4 18.5V20M10 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM20 20v-1.5a3.5 3.5 0 0 0-2.5-3.3M15.5 4.2a3.5 3.5 0 0 1 0 6.6"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="m20 20-4-4m2-5a7 7 0 1 1-14 0 7 7 0 0 1 14 0z"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path fill="currentColor" d="M3.4 20.4 21 12 3.4 3.6l-.1 6.5L15 12 3.3 13.9z"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M15 5l-7 7 7 7"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></symbol>
+  <symbol id="i-logout" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 17l-5-5 5-5M5 12h11"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M5 12h14M13 6l6 6-6 6"/></symbol>
+</svg>
+
 <section id="join">
-  <div class="card">
-    <h1>Chat Room</h1>
-    <p>Public chat and private messages over WebSocket.</p>
+  <div class="join-card">
+    <div class="logo"><svg width="28" height="28"><use href="#i-logo"/></svg></div>
+    <h1>Welcome to Chat Room</h1>
+    <p class="lead">Talk with everyone, or send private messages that only one person can read.</p>
+    <div class="features">
+      <span class="chip"><svg width="14" height="14"><use href="#i-users"/></svg>Public room</span>
+      <span class="chip"><svg width="14" height="14"><use href="#i-lock"/></svg>Private messages</span>
+      <span class="chip"><svg width="14" height="14"><use href="#i-bolt"/></svg>Real-time WebSocket</span>
+    </div>
     <form id="join-form" autocomplete="off">
-      <label for="nick">Choose a nickname</label>
-      <input id="nick" class="field" maxlength="20" placeholder="e.g. alice" required>
-      <button id="join-btn" class="primary" type="submit">Join chat</button>
+      <label class="field-label" for="nick">Choose a nickname</label>
+      <input id="nick" class="input" maxlength="20" placeholder="e.g. alice" required
+             pattern="[A-Za-z0-9_\-]{1,20}" title="1-20 letters, digits, _ or -">
+      <button id="join-btn" class="btn-primary" type="submit">
+        <span>Join the chat</span><svg width="18" height="18"><use href="#i-arrow"/></svg>
+      </button>
     </form>
-    <div id="join-error"></div>
-    <div class="server-info">Server: <span id="server-addr"></span></div>
+    <div id="join-error" role="alert"></div>
+    <div class="join-foot">
+      <span>Server <code id="server-addr"></code></span>
+      <button class="icon-btn theme-toggle" type="button" title="Toggle theme"></button>
+    </div>
   </div>
 </section>
 
-<section id="chat" class="hidden">
-  <header>
-    <h2>Chat Room</h2>
-    <span class="status me">You are <strong id="me"></strong></span>
-    <span class="status"><span id="dot" class="dot"></span><span id="conn">Connected</span></span>
-    <button id="leave" class="ghost" type="button">Leave</button>
-  </header>
-  <div class="layout">
-    <aside>
-      <h3>Send to</h3>
-      <div id="users"></div>
-      <p class="hint">Select a user to message them privately. Commands like <code>/msg bob hi</code> and <code>@bob hi</code> also work.</p>
-    </aside>
-    <main>
-      <div id="log" aria-live="polite"></div>
-      <div class="composer">
-        <div class="target">To: <span id="target" class="pill"></span></div>
-        <form id="send-form" autocomplete="off">
-          <input id="input" class="field" placeholder="Type a message… (/help for commands)" maxlength="2000">
-          <button class="primary" type="submit">Send</button>
-        </form>
-      </div>
-    </main>
-  </div>
-</section>
+<div id="app" class="hidden">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="logo"><svg width="20" height="20"><use href="#i-logo"/></svg></div>
+      <strong>Chat Room</strong>
+      <button class="icon-btn theme-toggle" type="button" title="Toggle theme"></button>
+    </div>
+    <div class="search">
+      <svg width="16" height="16"><use href="#i-search"/></svg>
+      <input id="search" class="input" placeholder="Search people" autocomplete="off">
+    </div>
+    <nav class="list" id="list"></nav>
+    <div class="me-card">
+      <div class="avatar sm" id="me-avatar"></div>
+      <div class="who"><strong id="me-name"></strong><span id="conn" class="conn-ok">● Online</span></div>
+      <button class="icon-btn" id="leave" type="button" title="Leave chat">
+        <svg width="18" height="18"><use href="#i-logout"/></svg>
+      </button>
+    </div>
+  </aside>
+
+  <main class="convo" id="convo">
+    <header class="convo-head">
+      <button class="icon-btn" id="back" type="button" title="Back"><svg width="20" height="20"><use href="#i-back"/></svg></button>
+      <div id="head-avatar"></div>
+      <div class="title"><strong id="head-title"></strong><span id="head-sub"></span></div>
+      <div id="head-extra"></div>
+    </header>
+    <div class="banner hidden" id="banner"><span class="spinner"></span><span>Connection lost. Reconnecting…</span></div>
+    <div id="log" aria-live="polite"></div>
+    <div class="composer">
+      <form id="send-form" autocomplete="off">
+        <input id="input" maxlength="2000" placeholder="Message everyone">
+        <button class="send" id="send-btn" type="submit" title="Send" disabled><svg width="18" height="18"><use href="#i-send"/></svg></button>
+      </form>
+      <p class="hint">Press <kbd>Enter</kbd> to send · Type <kbd>/help</kbd> for commands like <kbd>/msg bob hi</kbd></p>
+    </div>
+  </main>
+</div>
+
+<div id="toasts"></div>
 
 <script>
 (() => {
+  "use strict";
   const $ = (id) => document.getElementById(id);
-  const EVERYONE = null;
+  const EVERYONE = "#";
   const HELP = [
-    "Commands:",
-    "  /msg <user> <message>   private message (also /w, /pm, /whisper, /tell)",
-    "  @<user> <message>       private message shortcut",
-    "  /r <message>            reply to the last private message",
-    "  /users                  list online users",
-    "  /help                   show this help",
-    "Or select a user on the left to send privately.",
+    "Commands",
+    "  /msg <user> <text>   private message (also /w, /pm, /whisper, /tell)",
+    "  @<user> <text>       private message shortcut",
+    "  /r <text>            reply to the last private message",
+    "  /users               list who is online",
+    "  /help                show this help",
+    "Tip: open a person in the sidebar to chat with them privately.",
   ].join("\n");
 
-  let ws = null, me = null, users = [], target = EVERYONE, lastSender = null;
-  const unread = {};
+  const state = {
+    ws: null, me: null, users: [], current: EVERYONE, lastSender: null, leaving: false,
+    reconnecting: false, retries: 0, pingTimer: null, retryTimer: null, search: "",
+    convos: new Map([[EVERYONE, []]]),  // key -> [{kind, from, text, ts, mine, error}]
+    unread: new Map(),
+  };
 
-  $("server-addr").textContent = location.host;
+  // ---------------- helpers ----------------
+  function el(tag, cls, text) {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function icon(name, size = 18) {
+    const ns = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(ns, "svg");
+    svg.setAttribute("width", size); svg.setAttribute("height", size);
+    const use = document.createElementNS(ns, "use");
+    use.setAttribute("href", "#i-" + name);
+    svg.append(use);
+    return svg;
+  }
+  function hue(name) {
+    let h = 0;
+    for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) % 360;
+    return h;
+  }
+  function avatar(name, opts = {}) {
+    const a = el("div", "avatar" + (opts.sm ? " sm" : ""));
+    if (name === EVERYONE) {
+      a.classList.add("channel");
+      a.append(icon("hash", opts.sm ? 16 : 20));
+      return a;
+    }
+    const h = hue(name);
+    a.style.background = `linear-gradient(135deg, hsl(${h} 70% 55%), hsl(${(h + 40) % 360} 70% 45%))`;
+    a.textContent = name[0];
+    if (opts.online) a.append(el("span", "dot"));
+    return a;
+  }
+  const fmtTime = (ts) => new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const isOnline = (name) => state.users.includes(name);
+  function convo(key) {
+    if (!state.convos.has(key)) state.convos.set(key, []);
+    return state.convos.get(key);
+  }
+  function lastMsg(key) {
+    const items = state.convos.get(key) || [];
+    for (let i = items.length - 1; i >= 0; i--) if (items[i].kind === "msg") return items[i];
+    return null;
+  }
 
-  // ---- connection ---------------------------------------------------------
+  // ---------------- theme ----------------
+  function storedTheme() { try { return localStorage.getItem("theme"); } catch { return null; } }
+  function applyTheme(theme) {
+    if (theme) document.documentElement.dataset.theme = theme;
+    else delete document.documentElement.dataset.theme;
+    const dark = theme ? theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+    document.querySelectorAll(".theme-toggle").forEach((b) => {
+      b.replaceChildren(icon(dark ? "sun" : "moon"));
+      b.title = dark ? "Switch to light mode" : "Switch to dark mode";
+    });
+  }
+  document.querySelectorAll(".theme-toggle").forEach((b) => b.addEventListener("click", () => {
+    const dark = document.documentElement.dataset.theme
+      ? document.documentElement.dataset.theme === "dark"
+      : matchMedia("(prefers-color-scheme: dark)").matches;
+    const next = dark ? "light" : "dark";
+    try { localStorage.setItem("theme", next); } catch {}
+    applyTheme(next);
+  }));
+  applyTheme(storedTheme());
+
+  // ---------------- connection ----------------
   function connect(nick) {
+    clearTimeout(state.retryTimer);
     const scheme = location.protocol === "https:" ? "wss" : "ws";
-    ws = new WebSocket(`${scheme}://${location.host}/ws`);
-    ws.onopen = () => send({ type: "nick", name: nick });
+    const ws = new WebSocket(`${scheme}://${location.host}/ws`);
+    state.ws = ws;
+    ws.onopen = () => {
+      send({ type: "nick", name: nick });
+      clearInterval(state.pingTimer);
+      state.pingTimer = setInterval(() => send({ type: "ping" }), 25000);
+    };
     ws.onmessage = (event) => handle(JSON.parse(event.data));
     ws.onclose = () => {
-      setConnected(false);
-      if (!me) {
-        $("join-error").textContent = "Could not reach the chat server.";
+      if (state.ws !== ws) return;
+      clearInterval(state.pingTimer);
+      state.ws = null;
+      if (state.leaving) return;
+      if (state.me) scheduleReconnect();
+      else {
+        $("join-error").textContent = "Could not reach the chat server. Is it running?";
         $("join-btn").disabled = false;
-      } else {
-        addSystem("Disconnected from server. Press Leave and join again to reconnect.", true);
       }
     };
   }
-
+  function scheduleReconnect() {
+    state.reconnecting = true;
+    setConnState(false);
+    const delay = Math.min(1000 * 2 ** state.retries, 10000);
+    state.retries++;
+    state.retryTimer = setTimeout(() => connect(state.me), delay);
+  }
   function send(message) {
-    if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(message));
+    if (state.ws && state.ws.readyState === WebSocket.OPEN) {
+      state.ws.send(JSON.stringify(message));
+      return true;
+    }
+    return false;
+  }
+  function setConnState(ok) {
+    $("banner").classList.toggle("hidden", ok);
+    $("conn").textContent = ok ? "● Online" : "● Reconnecting…";
+    $("conn").className = ok ? "conn-ok" : "conn-bad";
+    updateComposer();
   }
 
-  function setConnected(on) {
-    $("dot").classList.toggle("off", !on);
-    $("conn").textContent = on ? "Connected" : "Disconnected";
-  }
-
-  // ---- incoming messages --------------------------------------------------
+  // ---------------- incoming ----------------
   function handle(m) {
     switch (m.type) {
-      case "welcome":
-        me = m.name;
-        $("me").textContent = me;
-        $("join").classList.add("hidden");
-        $("chat").classList.remove("hidden");
-        setConnected(true);
-        addSystem(`Welcome, ${me}! Select a user to send a private message, or type /help.`);
-        $("input").focus();
-        break;
-      case "error":
-        if (!me) { $("join-error").textContent = m.text; $("join-btn").disabled = false; }
-        else addSystem(m.text, true);
-        break;
-      case "users":
-        users = m.users.filter((u) => u !== me);
-        if (target && !users.includes(target)) setTarget(EVERYONE);
-        renderUsers();
-        break;
-      case "public":
-        addMessage(m.from, m.text, { mine: m.from === me });
-        break;
-      case "private": {
-        const mine = m.from === me;
-        if (!mine) {
-          lastSender = m.from;
-          if (target !== m.from) { unread[m.from] = (unread[m.from] || 0) + 1; renderUsers(); }
-        }
-        addMessage(m.from, m.text, {
-          mine, private: true,
-          label: mine ? `Private to ${m.to}` : `Private from ${m.from}`,
-        });
+      case "welcome": {
+        const again = state.reconnecting;
+        state.me = m.name; state.reconnecting = false; state.retries = 0;
+        if (!again) showApp();
+        setConnState(true);
+        if (again) add(EVERYONE, { kind: "sys", text: "Reconnected" });
         break;
       }
+      case "error":
+        if (state.reconnecting) { state.ws && state.ws.close(); return; }  // stale name; retry soon
+        if (!state.me) { $("join-error").textContent = m.text; $("join-btn").disabled = false; return; }
+        add(state.current, { kind: "sys", text: m.text, error: true });
+        break;
+      case "users": {
+        const now = m.users.filter((u) => u !== state.me);
+        const before = state.users;
+        state.users = now;
+        for (const u of now) if (!before.includes(u) && state.convos.has(u))
+          add(u, { kind: "sys", text: `${u} is back online` });
+        for (const u of before) if (!now.includes(u) && state.convos.has(u))
+          add(u, { kind: "sys", text: `${u} went offline` });
+        render();
+        break;
+      }
+      case "public":
+        add(EVERYONE, { kind: "msg", from: m.from, text: m.text, mine: m.from === state.me });
+        break;
+      case "private": {
+        const mine = m.from === state.me;
+        const key = mine ? m.to : m.from;
+        if (!mine) state.lastSender = m.from;
+        add(key, { kind: "msg", from: m.from, text: m.text, mine });
+        break;
+      }
+      case "pong":
+        break;
       default:
-        addSystem(m.text || "");
+        if (m.text) add(EVERYONE, { kind: "sys", text: m.text });
     }
   }
 
-  // ---- rendering ----------------------------------------------------------
-  function colorFor(name) {
-    let h = 0;
-    for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) % 360;
-    return `hsl(${h} 55% 45%)`;
+  function add(key, item) {
+    item.ts = Date.now();
+    convo(key).push(item);
+    if (item.kind === "msg" && !item.mine && (key !== state.current || document.hidden)) {
+      if (key !== state.current || document.hidden) state.unread.set(key, (state.unread.get(key) || 0) + 1);
+      if (key !== EVERYONE && key !== state.current) toast(key, item.text);
+    }
+    if (key === state.current) renderLog();
+    renderList();
+    updateTitle();
   }
 
-  function userButton(name, label, count) {
-    const b = document.createElement("button");
+  // ---------------- rendering ----------------
+  function showApp() {
+    $("join").classList.add("hidden");
+    $("app").classList.remove("hidden");
+    $("me-name").textContent = state.me;
+    $("me-avatar").replaceWith(Object.assign(avatar(state.me, { sm: true }), { id: "me-avatar" }));
+    if (!convo(EVERYONE).length)
+      add(EVERYONE, { kind: "sys", text: `You joined as ${state.me}` });
+    open(EVERYONE, false);
+  }
+
+  function render() { renderList(); renderHead(); updateComposer(); }
+
+  function listItem(key) {
+    const isChan = key === EVERYONE;
+    const online = isChan || isOnline(key);
+    const unread = state.unread.get(key) || 0;
+    const b = el("button", "item" + (key === state.current ? " active" : "") + (online ? "" : " offline") + (unread ? " unread" : ""));
     b.type = "button";
-    b.className = "user" + (target === name ? " active" : "");
-    const av = document.createElement("span");
-    av.className = "avatar";
-    av.style.background = name ? colorFor(name) : "var(--muted)";
-    av.textContent = name ? name[0].toUpperCase() : "#";
-    const text = document.createElement("span");
-    text.className = "label";
-    text.textContent = label;
-    b.append(av, text);
-    if (count) {
-      const badge = document.createElement("span");
-      badge.className = "badge";
-      badge.textContent = count;
-      b.append(badge);
-    }
-    b.onclick = () => { setTarget(name); $("input").focus(); };
+    b.append(avatar(key, { online: !isChan && online }));
+    const main = el("div", "item-main");
+    const top = el("div", "item-top");
+    top.append(el("span", "item-name", isChan ? "everyone" : key));
+    const last = lastMsg(key);
+    if (last) top.append(el("span", "item-time", fmtTime(last.ts)));
+    const sub = el("div", "item-sub");
+    let preview;
+    if (last) preview = (last.mine ? "You: " : isChan ? `${last.from}: ` : "") + last.text;
+    else preview = isChan ? `${state.users.length + 1} people online` : online ? "Online · say hi 👋" : "Offline";
+    sub.append(el("span", "item-preview", preview));
+    if (unread) sub.append(el("span", "badge" + (isChan ? "" : " private"), unread > 99 ? "99+" : unread));
+    main.append(top, sub);
+    b.append(main);
+    b.onclick = () => open(key);
     return b;
   }
 
-  function renderUsers() {
-    const box = $("users");
-    box.replaceChildren(userButton(EVERYONE, `Everyone (${users.length + 1} online)`));
-    for (const u of users) box.append(userButton(u, u, unread[u]));
-  }
-
-  function setTarget(name) {
-    target = name;
-    if (name) delete unread[name];
-    const pill = $("target");
-    pill.className = "pill" + (name ? " private" : "");
-    pill.replaceChildren(document.createTextNode(name ? `🔒 ${name} (private)` : "Everyone"));
-    if (name) {
-      const x = document.createElement("button");
-      x.type = "button"; x.title = "Back to everyone"; x.textContent = "✕";
-      x.onclick = () => setTarget(EVERYONE);
-      pill.append(x);
+  function renderList() {
+    const list = $("list");
+    const q = state.search.toLowerCase();
+    list.replaceChildren();
+    if (!q || "everyone".includes(q)) {
+      list.append(el("div", "section", "Room"), listItem(EVERYONE));
     }
-    $("input").placeholder = name ? `Private message to ${name}…` : "Type a message… (/help for commands)";
-    renderUsers();
+    const people = new Set(state.users);
+    for (const key of state.convos.keys()) if (key !== EVERYONE && key !== state.me) people.add(key);
+    const sorted = [...people].filter((p) => p.toLowerCase().includes(q)).sort((a, b) => {
+      const on = Number(isOnline(b)) - Number(isOnline(a));
+      if (on) return on;
+      const ta = lastMsg(a)?.ts || 0, tb = lastMsg(b)?.ts || 0;
+      return tb - ta || a.localeCompare(b);
+    });
+    const head = el("div", "section");
+    head.append(el("span", null, "Private messages"), el("span", null, `${state.users.length} online`));
+    list.append(head);
+    if (!sorted.length) list.append(el("p", "empty-list", q ? "No one matches your search." : "No one else is here yet. Open the chat on another device to start a private conversation."));
+    for (const p of sorted) list.append(listItem(p));
   }
 
-  function scrollDown() {
+  function renderHead() {
+    const key = state.current;
+    const isChan = key === EVERYONE;
+    $("head-avatar").replaceChildren(avatar(key, { online: !isChan && isOnline(key) }));
+    $("head-title").textContent = isChan ? "everyone" : key;
+    const n = state.users.length + 1;
+    $("head-sub").textContent = isChan
+      ? `${n} ${n === 1 ? "person" : "people"} online · public room`
+      : isOnline(key) ? "Online" : "Offline";
+    const extra = $("head-extra");
+    extra.replaceChildren();
+    if (isChan) {
+      const stack = el("div", "stack");
+      const all = [state.me, ...state.users];
+      for (const u of all.slice(0, 4)) stack.append(avatar(u));
+      if (all.length > 4) stack.append(el("div", "avatar more", `+${all.length - 4}`));
+      extra.append(stack);
+    } else {
+      const tag = el("span", "lock-tag");
+      tag.append(icon("lock", 14), document.createTextNode("Private"));
+      extra.append(tag);
+    }
+    $("convo").classList.toggle("is-private", !isChan);
+  }
+
+  function renderLog() {
     const log = $("log");
-    log.scrollTop = log.scrollHeight;
+    const nearBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 120;
+    const key = state.current;
+    const items = convo(key);
+    log.replaceChildren();
+    if (!items.some((i) => i.kind === "msg")) log.append(emptyState(key));
+    let prev = null;
+    for (const item of items) {
+      if (item.kind === "sys") {
+        log.append(el("div", "sys" + (item.error ? " error" : "") + (item.help ? " help" : ""), item.text));
+        prev = null;
+        continue;
+      }
+      const cont = prev && prev.from === item.from && item.ts - prev.ts < 5 * 60 * 1000;
+      const row = el("div", "row" + (item.mine ? " mine" : "") + (cont ? " cont" : ""));
+      if (item.mine) row.append(el("div"));
+      else if (cont) row.append(el("div", "gutter"));
+      else row.append(avatar(item.from, { sm: true }));
+      const body = el("div", "row-body");
+      if (!cont) {
+        const head = el("div", "row-head");
+        head.append(el("strong", null, item.mine ? "You" : item.from), el("time", null, fmtTime(item.ts)));
+        body.append(head);
+      }
+      const bubble = el("div", "bubble", item.text);
+      bubble.title = new Date(item.ts).toLocaleString();
+      body.append(bubble);
+      row.append(body);
+      log.append(row);
+      prev = item;
+    }
+    if (nearBottom || items.length && items[items.length - 1].mine) log.scrollTop = log.scrollHeight;
   }
 
-  function addMessage(from, text, opts) {
-    const wrap = document.createElement("div");
-    wrap.className = "msg" + (opts.mine ? " mine" : "") + (opts.private ? " private" : "");
-    const meta = document.createElement("div");
-    meta.className = "meta";
-    const time = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-    meta.textContent = `${opts.label || (opts.mine ? "You" : from)} · ${time}`;
-    const bubble = document.createElement("div");
-    bubble.className = "bubble";
-    bubble.textContent = text;
-    wrap.append(meta, bubble);
-    $("log").append(wrap);
-    scrollDown();
+  function emptyState(key) {
+    const isChan = key === EVERYONE;
+    const box = el("div", "empty" + (isChan ? " public" : ""));
+    const big = el("div", "big");
+    big.append(icon(isChan ? "hash" : "lock", 32));
+    box.append(big);
+    if (isChan) {
+      box.append(el("h3", null, "Welcome to #everyone"),
+        el("p", null, "Messages here are seen by everyone in the room. Pick a person on the left to talk privately."));
+    } else {
+      box.append(el("h3", null, `Private chat with ${key}`),
+        el("p", null, `Only you and ${key} can see these messages. The server delivers them to ${key}'s connection alone (unicast).`));
+    }
+    return box;
   }
 
-  function addSystem(text, isError) {
-    const div = document.createElement("div");
-    div.className = "system" + (isError ? " error" : "");
-    div.textContent = text;
-    $("log").append(div);
-    scrollDown();
+  function updateComposer() {
+    const key = state.current;
+    const input = $("input");
+    const connected = !!state.ws && state.ws.readyState === WebSocket.OPEN && !state.reconnecting;
+    const reachable = key === EVERYONE || isOnline(key);
+    input.disabled = !connected;
+    input.placeholder = !connected ? "Reconnecting…"
+      : key === EVERYONE ? "Message everyone"
+      : reachable ? `Private message to ${key}` : `${key} is offline. You can still use commands.`;
+    $("send-btn").disabled = !connected || !input.value.trim();
   }
 
-  // ---- outgoing: same commands as the terminal client (protocol.parse_input) ----
+  function updateTitle() {
+    let total = 0;
+    for (const n of state.unread.values()) total += n;
+    document.title = total ? `(${total}) Chat Room` : "Chat Room";
+  }
+
+  function open(key, focus = true) {
+    state.current = key;
+    state.unread.delete(key);
+    $("app").classList.add("show-convo");
+    renderLog(); render(); updateTitle();
+    $("log").scrollTop = $("log").scrollHeight;
+    if (focus && matchMedia("(min-width: 761px)").matches) $("input").focus();
+  }
+
+  function toast(from, text) {
+    const t = el("button", "toast");
+    t.type = "button";
+    const body = el("div", "t-body");
+    body.append(el("div", "t-title", `🔒 Private message from ${from}`), el("div", "t-text", text));
+    t.append(avatar(from, { sm: true }), body);
+    t.onclick = () => { open(from); t.remove(); };
+    $("toasts").append(t);
+    while ($("toasts").children.length > 3) $("toasts").firstChild.remove();
+    setTimeout(() => t.remove(), 5000);
+  }
+
+  // ---------------- outgoing (same commands as the terminal client) ----------------
   const PRIVATE = ["/msg", "/w", "/pm", "/whisper", "/tell"];
-
+  function splitFirst(s) {
+    const i = s.indexOf(" ");
+    return i < 0 ? [s, ""] : [s.slice(0, i), s.slice(i + 1)];
+  }
   function privateMsg(to, text) {
     to = (to || "").trim(); text = (text || "").trim();
     if (!to || !text) throw new Error("Usage: /msg <user> <message>");
     return { type: "private", to, text };
   }
-
-  function splitFirst(s) {
-    const i = s.indexOf(" ");
-    return i < 0 ? [s, ""] : [s.slice(0, i), s.slice(i + 1)];
-  }
-
   function parseInput(line) {
     line = line.trim();
     if (!line) return null;
     if (line.startsWith("@") && line.length > 1) return privateMsg(...splitFirst(line.slice(1)));
     if (!line.startsWith("/")) {
-      return target ? privateMsg(target, line) : { type: "public", text: line };
+      return state.current === EVERYONE ? { type: "public", text: line } : privateMsg(state.current, line);
     }
     let [cmd, rest] = splitFirst(line);
     cmd = cmd.toLowerCase(); rest = rest.trim();
     if (PRIVATE.includes(cmd)) return privateMsg(...splitFirst(rest));
     if (cmd === "/r" || cmd === "/reply") {
-      if (!lastSender) throw new Error("Nobody has sent you a private message yet.");
-      return privateMsg(lastSender, rest);
+      if (!state.lastSender) throw new Error("Nobody has sent you a private message yet.");
+      return privateMsg(state.lastSender, rest);
     }
     if (["/users", "/who", "/list"].includes(cmd)) return { type: "users" };
     if (cmd === "/help" || cmd === "/?") return { type: "help" };
@@ -360,50 +768,67 @@
     throw new Error(`Unknown command ${cmd}. Type /help for a list.`);
   }
 
-  // ---- UI events ----------------------------------------------------------
-  $("join-form").onsubmit = (e) => {
+  // ---------------- UI events ----------------
+  $("server-addr").textContent = location.host || "local file";
+
+  $("join-form").addEventListener("submit", (e) => {
     e.preventDefault();
     const nick = $("nick").value.trim();
     if (!nick) return;
     $("join-error").textContent = "";
     $("join-btn").disabled = true;
-    if (ws && ws.readyState === WebSocket.OPEN) send({ type: "nick", name: nick });
-    else connect(nick);
-  };
+    state.leaving = false;
+    if (!send({ type: "nick", name: nick })) connect(nick);
+  });
 
-  $("send-form").onsubmit = (e) => {
+  $("input").addEventListener("input", updateComposer);
+  $("send-form").addEventListener("submit", (e) => {
     e.preventDefault();
     const input = $("input");
     let message;
     try { message = parseInput(input.value); }
-    catch (err) { addSystem(err.message, true); return; }
+    catch (err) { add(state.current, { kind: "sys", text: err.message, error: true }); return; }
     input.value = "";
+    updateComposer();
     if (!message) return;
-    if (message.type === "help") return addSystem(HELP);
+    if (message.type === "help") return add(state.current, { kind: "sys", text: HELP, help: true });
     if (message.type === "quit") return leave();
     if (message.type === "users") {
-      return addSystem("Online: " + [me, ...users].sort((a, b) => a.localeCompare(b)).join(", "));
+      const all = [state.me, ...state.users].sort((a, b) => a.localeCompare(b));
+      return add(state.current, { kind: "sys", text: `Online (${all.length}): ${all.join(", ")}` });
     }
-    if (message.type === "private" && unread[message.to]) {
-      delete unread[message.to];
-      renderUsers();
+    if (message.type === "private" && message.to.toLowerCase() !== state.current.toLowerCase()) {
+      const match = state.users.find((u) => u.toLowerCase() === message.to.toLowerCase());
+      if (match) open(match);  // jump to the conversation the message went to
     }
     send(message);
-  };
+  });
+
+  $("search").addEventListener("input", (e) => { state.search = e.target.value; renderList(); });
+  $("back").addEventListener("click", () => { $("app").classList.remove("show-convo"); renderList(); });
+  $("leave").addEventListener("click", leave);
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden && state.me) { state.unread.delete(state.current); renderList(); updateTitle(); }
+  });
 
   function leave() {
-    if (ws) { ws.onclose = null; send({ type: "quit" }); ws.close(); ws = null; }
-    me = null; users = []; lastSender = null; target = EVERYONE;
-    for (const k of Object.keys(unread)) delete unread[k];
-    $("log").replaceChildren();
-    $("chat").classList.add("hidden");
+    state.leaving = true;
+    clearTimeout(state.retryTimer);
+    clearInterval(state.pingTimer);
+    if (state.ws) { send({ type: "quit" }); state.ws.close(); state.ws = null; }
+    Object.assign(state, { me: null, users: [], current: EVERYONE, lastSender: null, reconnecting: false, retries: 0 });
+    state.convos = new Map([[EVERYONE, []]]);
+    state.unread.clear();
+    $("toasts").replaceChildren();
+    $("app").classList.add("hidden");
+    $("app").classList.remove("show-convo");
+    $("banner").classList.add("hidden");
     $("join").classList.remove("hidden");
     $("join-btn").disabled = false;
+    updateTitle();
     $("nick").focus();
   }
-  $("leave").onclick = leave;
 
-  setTarget(EVERYONE);
   $("nick").focus();
 })();
 </script>

@@ -93,6 +93,20 @@ class WebTests(unittest.TestCase):
         with urllib.request.urlopen(f"http://127.0.0.1:{self.web_port}/") as response:
             self.assertIn(b"<title>Chat Room</title>", response.read())
 
+    def test_health_check_and_head(self):
+        base = f"http://127.0.0.1:{self.web_port}"
+        with urllib.request.urlopen(f"{base}/healthz") as response:
+            self.assertEqual(response.read(), b"ok\n")
+        request = urllib.request.Request(f"{base}/", method="HEAD")
+        with urllib.request.urlopen(request) as response:
+            self.assertEqual(response.status, 200)
+            self.assertEqual(response.read(), b"")
+
+    def test_keepalive_ping(self):
+        alice = self.ws("alice")
+        alice.send({"type": "ping"})
+        self.assertEqual(alice.recv_json("pong"), {"type": "pong"})
+
     def test_handshake(self):
         ws = RawWebSocket(self.web_port)
         self.cleanup.append(ws.close)

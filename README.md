@@ -11,7 +11,39 @@ A multi-client TCP chat room in Python (standard library only) with **public and
 
 Laptop B only needs a browser, not Python. If it can't load the page, allow Python through Windows Firewall on laptop A (TCP port 8000).
 
-![Website](docs/web-screenshot.png)
+![Website: private conversation](docs/web-screenshot.png)
+
+| Join screen | Dark mode | Phone |
+|---|---|---|
+| ![Join](docs/web-screenshot-join.png) | ![Dark mode](docs/web-screenshot-dark.png) | ![Phone](docs/web-screenshot-mobile.png) |
+
+**Website features:** a public `#everyone` room plus a separate private conversation with each person, online indicators, unread badges, pop-up notifications for new private messages, people search, light/dark mode, a phone layout, and automatic reconnection if the server restarts. The terminal commands (`/msg`, `@user`, `/r`, `/users`, `/help`) also work in the message box.
+
+## Deploy it on the internet
+
+The project has no dependencies, so it runs as-is on any platform that can run Python or Docker. The server serves the website on the port in the `PORT` environment variable that hosting platforms set. Browsers then use `https://` and `wss://` automatically.
+
+### Render (free)
+1. Push this repository to GitHub, then sign in at [render.com](https://render.com) with GitHub.
+2. Click **New → Blueprint** and pick this repository. Render reads `render.yaml` and creates the service.
+   Alternatively, click **New → Web Service** and set *Build command* `pip install -r requirements.txt` and *Start command* `python -m chat.server`.
+3. When the deploy finishes, open the `https://chat-room-xxxx.onrender.com` link on any two devices, anywhere in the world.
+
+On the free plan the service sleeps after about 15 minutes without visitors, and the first visit then takes around 30 seconds to wake it up.
+
+### Railway / Heroku
+These platforms detect Python from `requirements.txt` and start the app with the `Procfile` (`web: python -m chat.server`). No settings are needed.
+
+### Docker (any VPS or cloud)
+```bash
+docker build -t chat-room .
+```
+```bash
+docker run -p 8000:8000 -p 5000:5000 chat-room
+```
+Then open `http://<server-ip>:8000`.
+
+> On hosting platforms only the website port is public, so the terminal and GUI clients (raw TCP port 5000) work only on your LAN or on a VPS where you open that port.
 
 ## Running
 

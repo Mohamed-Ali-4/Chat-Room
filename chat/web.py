@@ -88,26 +88,41 @@ def read_frame(rfile) -> tuple[bool, int, bytes]:
 class WebHandler(http.server.BaseHTTPRequestHandler):
     server: "WebServer"
     server_version = "ChatRoom/1.0"
+    protocol_version = "HTTP/1.1"  # WebSocket upgrades require HTTP/1.1
 
     def log_message(self, format, *args):
         log.debug("%s %s", self.address_string(), format % args)
 
-    def do_GET(self):
-        if self.path == "/ws":
+    def do_GET(self, head_only: bool = False):
+        path = self.path.split("?", 1)[0]
+        if path == "/ws" and not head_only:
             self.handle_websocket()
-        elif self.path in ("/", "/index.html"):
-            self.serve_file(STATIC_DIR / "index.html", "text/html; charset=utf-8")
+        elif path in ("/", "/index.html"):
+            self.serve_bytes((STATIC_DIR / "index.html").read_bytes(),
+                             "text/html; charset=utf-8", head_only)
+        elif path == "/healthz":  # for hosting platforms' health checks
+            self.serve_bytes(b"ok\n", "text/plain", head_only)
         else:
             self.send_error(404)
 
-    def serve_file(self, path: Path, content_type: str) -> None:
-        body = path.read_bytes()
+    def do_HEAD(self):
+        self.do_GET(head_only=True)
+
+    def serve_bytes(self, body: bytes, content_type: str, head_only: bool = False) -> None:
         self.send_response(200)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
         self.end_headers()
-        self.wfile.write(body)
+        if not head_only:
+            self.wfile.write(body)
+
+    def client_ip(self):
+        """The real client address, even behind a hosting platform's reverse proxy."""
+        forwarded = self.headers.get("X-Forwarded-For")
+        if forwarded:
+            return (forwarded.split(",")[0].strip(), "proxy")
+        return self.client_address
 
     # -- WebSocket -----------------------------------------------------------
     def handle_websocket(self) -> None:
@@ -124,7 +139,7 @@ class WebHandler(http.server.BaseHTTPRequestHandler):
         self.close_connection = True  # don't parse further HTTP requests on this socket
 
         self._send_lock = threading.Lock()
-        session = Session(self.server.room, self.client_address, self.send_message, "WebSocket")
+        session = Session(self.server.room, self.client_ip(), self.send_message, "WebSocket")
         try:
             for text in self.messages():
                 try:

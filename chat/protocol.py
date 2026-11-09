@@ -7,6 +7,7 @@ Client -> server:
     {"type": "public",  "text": "hello everyone"}
     {"type": "private", "to": "bob", "text": "hi bob"}
     {"type": "users"}
+    {"type": "ping"}                      keep-alive, answered with {"type": "pong"}
     {"type": "quit"}
 
 Server -> client:

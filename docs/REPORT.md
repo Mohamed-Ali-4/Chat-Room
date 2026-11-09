@@ -185,9 +185,13 @@ tests/           unit + integration tests over real sockets (incl. raw WebSocket
 
 **GUI:** the right-hand panel lists *Everyone* plus every online user. Select a user to make what you type private, or double-click to jump to the input box. Private messages show in purple, and system notices in grey italics.
 
-**Website:** a join screen asks for a nickname. The left panel (a row of buttons on phones) lists *Everyone* and every online user. Click a user to switch the message box to **private** mode (a purple 🔒 pill shows who you're messaging), or click ✕ to go back to everyone. Private messages appear as purple bubbles labelled *Private to/from …*. A badge counts unread private messages from each user. The same commands (`/msg`, `@user`, `/r`, `/users`, `/help`) work in the message box, and the page follows the system light/dark theme.
+**Website:** a join screen asks for a nickname. The layout works like a messaging app. The sidebar has the public **#everyone** room and a separate **private conversation for every person**, with online dots, last-message previews and unread badges. Opening a person turns the conversation purple and shows a 🔒 *Private* tag, so it's always clear when a message is private. A pop-up notification appears when a private message arrives in another conversation, and the tab title shows the unread count. There is also people search, a light/dark toggle and a phone layout (a list screen and a conversation screen with a back button). If the connection drops, a banner appears and the page **reconnects automatically** with exponential backoff (1 s, 2 s, 4 s … up to 10 s). The terminal commands (`/msg`, `@user`, `/r`, `/users`, `/help`) also work in the message box.
 
-![Website screenshot](web-screenshot.png)
+![Website: private conversation](web-screenshot.png)
+
+| Join | Dark mode | Phone |
+|---|---|---|
+| ![Join](web-screenshot-join.png) | ![Dark](web-screenshot-dark.png) | ![Phone](web-screenshot-mobile.png) |
 
 ## 7. How to run
 
@@ -214,6 +218,13 @@ If they can't connect, allow TCP port 5000 through the server machine's firewall
 Quick demo in one terminal: `python demo.py`
 Tests: `python -m unittest -v`
 
+**Deploying on the internet** (Render, Railway, Heroku, Docker): hosting platforms put the app behind a **reverse proxy** that terminates TLS. Browsers connect with `https://` and `wss://`, and the proxy forwards plain HTTP/WebSocket to our server on the port given in the `PORT` environment variable. Three details make this work:
+* The server reads `$PORT`, uses `HTTP/1.1` (required for the `Upgrade` handshake through proxies), and answers health checks on `/healthz`.
+* The real client IP comes from the `X-Forwarded-For` header, because the TCP connection itself comes from the proxy.
+* Proxies close connections that are idle for too long, so the page sends a small `{"type":"ping"}` every 25 s and the server answers `{"type":"pong"}` (an application-level **keep-alive**).
+
+See the README for step-by-step deployment.
+
 ## 8. Testing and results
 
 | Test case | Expected | Result |
@@ -232,6 +243,8 @@ Tests: `python -m unittest -v`
 | Ping frame | server replies with a pong frame | Pass |
 | Browser ↔ terminal private messages | delivered in both directions (shared room) | Pass |
 | Website in a real browser (Chromium, 3 windows incl. phone width) | private messages hidden from the third user, duplicate nickname rejected | Pass |
+| Server restarted while 3 browsers are connected | banner shown, all browsers reconnect automatically, chat continues | Pass |
+| Docker image with `PORT=10000` | page served on 10000, `/healthz` returns ok, private message delivered | Pass |
 
 Sample output of `python demo.py`:
 ```
@@ -266,3 +279,5 @@ carol has no line here, which shows the message was unicast.
 13. **Why are browser frames masked?** So that intermediaries such as proxies can't be tricked into treating attacker-controlled bytes as HTTP (cache poisoning). Server frames aren't masked.
 14. **WebSocket vs HTTP polling?** WebSocket is one persistent full-duplex connection with small frame headers, so the server can push messages instantly. Polling repeats full HTTP requests and adds delay.
 15. **Why two ports (5000 and 8000)?** Port 5000 speaks our raw line-based protocol for Python clients. Port 8000 speaks HTTP/WebSocket for browsers. Both deliver the same JSON messages into one shared room.
+16. **Why does the deployed site use `wss://`?** The platform serves the page over HTTPS. A secure page may only open secure WebSockets, which is WebSocket inside TLS, the same way HTTPS is HTTP inside TLS.
+17. **What is a reverse proxy, and how does our server see the real client IP?** It is a server that receives clients' connections and forwards them to our app. Our TCP peer is then the proxy, so the original IP comes from the `X-Forwarded-For` header.

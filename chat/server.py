@@ -8,6 +8,7 @@ web page and WebSocket clients (see web.py). Both share one chat room.
 
 import argparse
 import logging
+import os
 import socket
 import socketserver
 import threading
@@ -92,6 +93,10 @@ class Session:
         """Handle one client message. Returns False to close the connection."""
         room = self.room
         kind = message.get("type")
+
+        if kind == "ping":  # keep-alive, so proxies don't close idle connections
+            self.send({"type": "pong"})
+            return True
 
         if self.name is None:
             if kind != "nick":
@@ -205,33 +210,47 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description="Chat room server")
     parser.add_argument("--host", default="0.0.0.0",
                         help="interface to bind (0.0.0.0 = all, 127.0.0.1 = this machine only)")
-    parser.add_argument("--port", type=int, default=5000, help="TCP port for terminal/GUI clients")
-    parser.add_argument("--web-port", type=int, default=8000,
-                        help="HTTP/WebSocket port for browsers (0 disables the website)")
+    parser.add_argument("--port", type=int, default=5000,
+                        help="TCP port for terminal/GUI clients (0 disables it)")
+    # Hosting platforms (Render, Railway, Heroku, Fly...) tell the app which port to serve on
+    # through the PORT environment variable and expose only that one port publicly.
+    parser.add_argument("--web-port", type=int, default=int(os.environ.get("PORT", 8000)),
+                        help="HTTP/WebSocket port for browsers (0 disables the website; "
+                             "defaults to $PORT when set)")
     args = parser.parse_args(argv)
+    if not args.port and not args.web_port:
+        parser.error("at least one of --port and --web-port must be enabled")
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
-    room = ChatRoom()
-    server = ChatServer((args.host, args.port), room=room)
-    web = WebServer((args.host, args.web_port), room) if args.web_port else None
-    ip = lan_address() if args.host == "0.0.0.0" else args.host
+    if args.port and args.port == args.web_port:
+        log.warning("Port %d is used for the website, so the raw TCP listener is disabled",
+                    args.port)
+        args.port = 0
 
-    log.info("Chat server listening on %s:%d (TCP)", args.host, args.port)
-    log.info("Terminal/GUI clients on other computers: --host %s --port %d", ip, args.port)
-    if web:
-        threading.Thread(target=web.serve_forever, daemon=True).start()
+    room = ChatRoom()
+    servers = []
+    ip = lan_address() if args.host == "0.0.0.0" else args.host
+    if args.port:
+        servers.append(ChatServer((args.host, args.port), room=room))
+        log.info("Chat server listening on %s:%d (TCP)", args.host, args.port)
+        log.info("Terminal/GUI clients on other computers: --host %s --port %d", ip, args.port)
+    if args.web_port:
+        servers.append(WebServer((args.host, args.web_port), room))
         log.info("Website: open http://%s:%d in a browser on any device on the network",
                  ip, args.web_port)
+
+    for server in servers[1:]:
+        threading.Thread(target=server.serve_forever, daemon=True).start()
     try:
-        server.serve_forever()
+        servers[0].serve_forever()
     except KeyboardInterrupt:
         log.info("Shutting down")
         room.broadcast({"type": "system", "text": "Server is shutting down."})
     finally:
-        server.server_close()
-        if web:
-            web.shutdown()
-            web.server_close()
+        for server in servers[1:]:
+            server.shutdown()
+        for server in servers:
+            server.server_close()
 
 
 if __name__ == "__main__":
