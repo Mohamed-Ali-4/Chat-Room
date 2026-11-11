@@ -1,0 +1,12 @@
+# One-click deploy on Render (https://render.com): New > Blueprint > pick this repository.
+services:
+  - type: web
+    name: chat-room
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m chat.server
+    healthCheckPath: /healthz
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.7
