@@ -95,6 +95,8 @@ def run_terminal(host: str, port: int, name: str | None,
         elif message["type"] == "error" and not joined.is_set():
             last_error[0] = message["text"]
             nick_rejected.set()
+        if message["type"] in ("typing", "pong"):
+            return  # only the website shows typing indicators
         if message["type"] == "users":
             if not users_requested.is_set():
                 return

@@ -128,6 +128,8 @@ class ChatApp:
             self.entry.configure(state=tk.DISABLED)
             self.conn = None
             return
+        if kind in ("typing", "pong"):
+            return
         if kind == "users":
             self._set_users(message["users"])
             return

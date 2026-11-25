@@ -58,6 +58,17 @@ class ChatRoom:
         for session in targets:
             session.send(message)
 
+    def send_typing(self, sender: str, recipient: str | None) -> None:
+        """Relay "sender is typing": to one user (private chat) or the whole room."""
+        if recipient is None:
+            self.broadcast({"type": "typing", "from": sender, "private": False}, exclude=sender)
+            return
+        with self._lock:
+            name = self._find(recipient)
+            target = self._clients.get(name) if name and name != sender else None
+        if target is not None:
+            target.send({"type": "typing", "from": sender, "private": True})
+
     def send_private(self, sender: str, recipient: str, text: str) -> str | None:
         """Deliver a private message. Returns an error string on failure."""
         with self._lock:
@@ -221,6 +232,9 @@ class Session:
                     self.send({"type": "error", "text": error})
         elif kind == "users":
             self.send({"type": "users", "users": room.users()})
+        elif kind == "typing":  # not logged: it is sent every couple of seconds while typing
+            recipient = str(message.get("to") or "").strip() or None
+            room.send_typing(self.name, recipient)
         elif kind == "quit":
             return False
         elif kind == "nick":

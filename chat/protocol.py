@@ -9,6 +9,7 @@ Client -> server:
     {"type": "public",  "text": "hello everyone"}
     {"type": "private", "to": "bob", "text": "hi bob"}
     {"type": "users"}
+    {"type": "typing",  "to": "bob"}      "I'm typing" (omit "to" for the whole room)
     {"type": "ping"}                      keep-alive, answered with {"type": "pong"}
     {"type": "quit"}
 
@@ -18,6 +19,7 @@ Server -> client:
     {"type": "private", "from": "alice", "to": "bob", "text": "..."}
     {"type": "system",  "text": "bob joined the chat"}
     {"type": "users",   "users": ["alice", "bob"]}
+    {"type": "typing",  "from": "alice", "private": true}
     {"type": "error",   "text": "..."}
 """
 

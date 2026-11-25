@@ -31,6 +31,12 @@ log = logging.getLogger("chat.web")
 
 WS_GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"  # fixed by RFC 6455
 STATIC_DIR = Path(__file__).with_name("static")
+# URL path -> (file in STATIC_DIR, content type). Only these files are served.
+STATIC_FILES = {
+    "/": ("index.html", "text/html; charset=utf-8"),
+    "/index.html": ("index.html", "text/html; charset=utf-8"),
+    "/qrcode.js": ("qrcode.js", "application/javascript; charset=utf-8"),  # MIT, Kazuhiko Arase
+}
 
 OP_CONTINUATION, OP_TEXT, OP_BINARY = 0x0, 0x1, 0x2
 OP_CLOSE, OP_PING, OP_PONG = 0x8, 0x9, 0xA
@@ -97,9 +103,9 @@ class WebHandler(http.server.BaseHTTPRequestHandler):
         path = self.path.split("?", 1)[0]
         if path == "/ws" and not head_only:
             self.handle_websocket()
-        elif path in ("/", "/index.html"):
-            self.serve_bytes((STATIC_DIR / "index.html").read_bytes(),
-                             "text/html; charset=utf-8", head_only)
+        elif path in STATIC_FILES:
+            name, content_type = STATIC_FILES[path]
+            self.serve_bytes((STATIC_DIR / name).read_bytes(), content_type, head_only)
         elif path == "/healthz":  # for hosting platforms' health checks
             self.serve_bytes(b"ok\n", "text/plain", head_only)
         else:

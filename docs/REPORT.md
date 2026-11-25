@@ -208,9 +208,9 @@ tests/           unit + integration tests over real sockets (incl. raw WebSocket
 
 ![Website: private conversation](web-screenshot.png)
 
-| Create or join a room | Room code to share | Invite link on a phone |
-|---|---|---|
-| ![Join](web-screenshot-join.png) | ![Room code](web-screenshot-room-code.png) | ![Invite](web-screenshot-invite.png) |
+| Landing page | Invite with QR code | Typing indicator | Phone |
+|---|---|---|---|
+| ![Landing](web-screenshot-join.png) | ![Invite](web-screenshot-room-code.png) | ![Typing](web-screenshot-typing.png) | ![Phone](web-screenshot-invite.png) |
 
 ## 7. How to run
 
@@ -236,6 +236,10 @@ If they can't connect, allow TCP port 5000 through the server machine's firewall
 
 Quick demo in one terminal: `python demo.py`
 Tests: `python -m unittest -v`
+
+**Typing indicators:** while you type, the page sends `{"type":"typing"}` (room) or `{"type":"typing","to":"bob"}` (private chat) at most once every 2 seconds, so the network isn't flooded with one packet per key press. The server relays it as `{"type":"typing","from":"alice","private":…}`, using broadcast for the room and unicast for a private chat, exactly like real messages. The receiver shows "alice is typing…" with animated dots, and the indicator disappears 3.5 s after the last signal or as soon as the message arrives. This is a small example of **soft state**: the server stores nothing, and the information expires on its own unless it's refreshed.
+
+**Invite QR code:** the "Invite" pop-up draws a QR code of the invite link (`http://<server>/?room=CODE`). A phone on the same Wi-Fi can scan it and join without typing anything. The QR library (`qrcode.js`, MIT licence) is served by our own server instead of a CDN, so it also works on a LAN with no internet.
 
 **Deploying on the internet** (Render, Railway, Heroku, Docker): hosting platforms put the app behind a **reverse proxy** that terminates TLS. Browsers connect with `https://` and `wss://`, and the proxy forwards plain HTTP/WebSocket to our server on the port given in the `PORT` environment variable. Three details make this work:
 * The server reads `$PORT`, uses `HTTP/1.1` (required for the `Upgrade` handshake through proxies), and answers health checks on `/healthz`.
@@ -267,6 +271,9 @@ See the README for step-by-step deployment.
 | Unknown room code | "Room … doesn't exist", user can retry | Pass |
 | Invite link `/?room=CODE` | join screen opens on "Join with code" with the code filled in | Pass |
 | Last member leaves | room deleted; LOBBY kept | Pass |
+| Typing indicator | private typing reaches only the partner, room typing reaches the room; cleared when the message arrives | Pass |
+| Invite QR code | the drawn QR code decodes (jsQR) to exactly the invite link `http://…/?room=CODE` | Pass |
+| Static files | only `index.html` and `qrcode.js` are served; paths like `/../server.py` return 404 | Pass |
 | Server restarted while 3 browsers are connected | banner shown, all browsers reconnect automatically, chat continues | Pass |
 | Docker image with `PORT=10000` | page served on 10000, `/healthz` returns ok, private message delivered | Pass |
 
@@ -307,3 +314,4 @@ carol has no line here, which shows the message was unicast.
 17. **What is a reverse proxy, and how does our server see the real client IP?** It is a server that receives clients' connections and forwards them to our app. Our TCP peer is then the proxy, so the original IP comes from the `X-Forwarded-For` header.
 18. **How do several groups share one server and port?** The server multiplexes them at the application layer. Every connection is tagged with a room code, and a message is forwarded only to connections with the same tag, like VLAN tags on one physical switch.
 19. **Why are room codes random rather than counting 1, 2, 3?** Sequential codes are easy to guess, so anyone could walk into other rooms. `secrets.choice` gives cryptographically random codes from about 887 million possibilities.
+20. **How do typing indicators avoid flooding the network?** The client sends at most one typing signal every 2 seconds, and receivers let it expire after 3.5 seconds (soft state). The server just relays it, with broadcast for the room and unicast for a private chat.
