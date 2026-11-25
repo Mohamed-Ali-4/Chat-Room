@@ -18,7 +18,7 @@ Laptop B only needs a browser, not Python. If it can't load the page, allow Pyth
 |---|---|---|---|
 | ![Landing](docs/web-screenshot-join.png) | ![Invite](docs/web-screenshot-room-code.png) | ![Typing](docs/web-screenshot-typing.png) | ![Phone](docs/web-screenshot-invite.png) |
 
-**Website features:** an animated landing page, rooms with join codes, invite links and a **QR code that phones can scan to join**, live **"… is typing" indicators**, a public `#everyone` channel per room plus a separate private conversation with each person, online indicators, unread badges, pop-up notifications for new private messages, an emoji picker with large emoji-only messages, clickable links, soft notification sounds (with a mute button), people search, light/dark mode, a phone layout, and automatic reconnection if the server restarts. The terminal commands (`/msg`, `@user`, `/r`, `/users`, `/help`) also work in the message box.
+**Website features:** a landing page with a live animated diagram of messages being routed (broadcast vs unicast), rooms with join codes, invite links and a **QR code that phones can scan to join**, live **"… is typing" indicators**, a public `#everyone` channel per room plus a separate private conversation with each person, online indicators, unread badges, pop-up notifications for new private messages, an emoji picker with large emoji-only messages, clickable links, soft notification sounds (with a mute button), people search, light/dark mode, a phone layout, and automatic reconnection if the server restarts. The terminal commands (`/msg`, `@user`, `/r`, `/users`, `/help`) also work in the message box.
 
 ## Deploy it on the internet
 

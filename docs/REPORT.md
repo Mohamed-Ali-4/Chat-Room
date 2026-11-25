@@ -237,6 +237,8 @@ If they can't connect, allow TCP port 5000 through the server machine's firewall
 Quick demo in one terminal: `python demo.py`
 Tests: `python -m unittest -v`
 
+**Landing page diagram:** the landing page shows an animated network diagram (*Fig. 1 · live routing*). Packets travel from a client to the server, then fan out to every other client for a public message (broadcast), or go to exactly one client, drawn in orange, for a private message (unicast). It is a visual version of Section 3.6 and is useful when presenting.
+
 **Typing indicators:** while you type, the page sends `{"type":"typing"}` (room) or `{"type":"typing","to":"bob"}` (private chat) at most once every 2 seconds, so the network isn't flooded with one packet per key press. The server relays it as `{"type":"typing","from":"alice","private":…}`, using broadcast for the room and unicast for a private chat, exactly like real messages. The receiver shows "alice is typing…" with animated dots, and the indicator disappears 3.5 s after the last signal or as soon as the message arrives. This is a small example of **soft state**: the server stores nothing, and the information expires on its own unless it's refreshed.
 
 **Invite QR code:** the "Invite" pop-up draws a QR code of the invite link (`http://<server>/?room=CODE`). A phone on the same Wi-Fi can scan it and join without typing anything. The QR library (`qrcode.js`, MIT licence) is served by our own server instead of a CDN, so it also works on a LAN with no internet.
