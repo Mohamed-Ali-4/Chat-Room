@@ -18,6 +18,7 @@ import socketserver
 import threading
 
 from . import protocol
+from .files import FileStore
 
 log = logging.getLogger("chat.server")
 
@@ -69,7 +70,8 @@ class ChatRoom:
         if target is not None:
             target.send({"type": "typing", "from": sender, "private": True})
 
-    def send_private(self, sender: str, recipient: str, text: str) -> str | None:
+    def send_private(self, sender: str, recipient: str, text: str,
+                     attachment: dict | None = None) -> str | None:
         """Deliver a private message. Returns an error string on failure."""
         with self._lock:
             name = self._find(recipient)
@@ -80,7 +82,10 @@ class ChatRoom:
         if name == sender:
             return "You cannot send a private message to yourself."
         message = {"type": "private", "from": sender, "to": name, "text": text}
-        log.info("[%s] PRIVATE %s -> %s (%d chars, unicast)", self.code, sender, name, len(text))
+        if attachment:
+            message["attachment"] = attachment
+        log.info("[%s] PRIVATE %s -> %s (%d chars%s, unicast)", self.code, sender, name, len(text),
+                 f", file {attachment['size']} bytes" if attachment else "")
         target.send(message)
         if origin is not None:
             origin.send(message)  # echo so the sender sees what was delivered
@@ -105,7 +110,14 @@ class Rooms:
 
     def __init__(self):
         self._rooms: dict[str, ChatRoom] = {protocol.LOBBY: ChatRoom(protocol.LOBBY)}
+        self._tokens: dict[str, "Session"] = {}  # upload token -> joined session
         self._lock = threading.Lock()
+        self.files = FileStore()  # attachments, shared by every room (ids are unguessable)
+
+    def session_for_token(self, token: str) -> "Session | None":
+        """The joined user an HTTP request belongs to (uploads and link previews need one)."""
+        with self._lock:
+            return self._tokens.get(token or "")
 
     def get(self, code: str) -> ChatRoom | None:
         with self._lock:
@@ -147,10 +159,12 @@ class Rooms:
                 if room.code != protocol.LOBBY and room.is_empty():
                     del self._rooms[room.code]  # don't keep a room nobody managed to enter
                 return None, error
+            self._tokens[session.token] = session
             return room, None
 
-    def leave(self, room: ChatRoom, name: str) -> bool:
+    def leave(self, room: ChatRoom, name: str, token: str | None = None) -> bool:
         with self._lock:
+            self._tokens.pop(token or "", None)
             left = room.leave(name)
             if left:
                 log.info("[%s] %s left", room.code, name)
@@ -187,6 +201,9 @@ class Session:
         self.send = send  # callable(dict) that writes one message to this client
         self.transport = transport
         self.name: str | None = None
+        # Secret given to this client in "welcome"; HTTP requests (file uploads, link
+        # previews) present it to prove they come from someone who is in a room.
+        self.token = secrets.token_urlsafe(18)
 
     def dispatch(self, message: dict) -> bool:
         """Handle one client message. Returns False to close the connection."""
@@ -209,7 +226,7 @@ class Session:
                 return True
             self.name, self.room = name, room
             log.info("[%s] %s joined from %s via %s", room.code, name, self.address, self.transport)
-            self.send({"type": "welcome", "name": name, "room": room.code})
+            self.send({"type": "welcome", "name": name, "room": room.code, "token": self.token})
             room.broadcast({"type": "system", "text": f"{name} joined the chat"}, exclude=name)
             room.broadcast({"type": "users", "users": room.users()})
             return True
@@ -217,17 +234,27 @@ class Session:
         room = self.room
 
         text = str(message.get("text", "")).strip()
+        attachment = None
+        if kind in ("public", "private") and message.get("attachment"):
+            attachment = self._attachment(message["attachment"])
+            if attachment is None:
+                self.send({"type": "error", "text": "That attachment is no longer available. Try attaching it again."})
+                return True
         if kind == "public":
-            if text:
-                log.info("[%s] PUBLIC  %s -> everyone in the room (%d chars, broadcast)",
-                         room.code, self.name, len(text))
-                room.broadcast({"type": "public", "from": self.name, "text": text})
+            if text or attachment:
+                log.info("[%s] PUBLIC  %s -> everyone in the room (%d chars%s, broadcast)",
+                         room.code, self.name, len(text),
+                         f", file {attachment['size']} bytes" if attachment else "")
+                out = {"type": "public", "from": self.name, "text": text}
+                if attachment:
+                    out["attachment"] = attachment
+                room.broadcast(out)
         elif kind == "private":
             recipient = str(message.get("to", "")).strip()
-            if not recipient or not text:
+            if not recipient or not (text or attachment):
                 self.send({"type": "error", "text": "Usage: /msg <user> <message>"})
             else:
-                error = room.send_private(self.name, recipient, text)
+                error = room.send_private(self.name, recipient, text, attachment)
                 if error:
                     self.send({"type": "error", "text": error})
         elif kind == "users":
@@ -243,9 +270,17 @@ class Session:
             self.send({"type": "error", "text": f"Unknown message type: {kind}"})
         return True
 
+    def _attachment(self, ref) -> dict | None:
+        """Look up a file this user uploaded. Its details come from our store, not from the client."""
+        file_id = ref.get("id") if isinstance(ref, dict) else None
+        stored = self.rooms.files.get(str(file_id or ""))
+        if stored is None or stored.owner != self.token:
+            return None
+        return stored.meta()
+
     def close(self) -> None:
         """Remove the user from the room and tell everyone else."""
-        if self.name and self.room and self.rooms.leave(self.room, self.name):
+        if self.name and self.room and self.rooms.leave(self.room, self.name, self.token):
             self.room.broadcast({"type": "system", "text": f"{self.name} left the chat"})
             self.room.broadcast({"type": "users", "users": self.room.users()})
 

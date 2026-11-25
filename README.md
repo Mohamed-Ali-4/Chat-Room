@@ -18,7 +18,13 @@ Laptop B only needs a browser, not Python. If it can't load the page, allow Pyth
 |---|---|---|---|
 | ![Landing](docs/web-screenshot-join.png) | ![Invite](docs/web-screenshot-room-code.png) | ![Typing](docs/web-screenshot-typing.png) | ![Phone](docs/web-screenshot-invite.png) |
 
-**Website features:** an animated landing page, rooms with join codes, invite links and a **QR code that phones can scan to join**, live **"… is typing" indicators**, a public `#everyone` channel per room plus a separate private conversation with each person, online indicators, unread badges, pop-up notifications for new private messages, an emoji picker with large emoji-only messages, clickable links, soft notification sounds (with a mute button), people search, light/dark mode, a phone layout, and automatic reconnection if the server restarts. The terminal commands (`/msg`, `@user`, `/r`, `/users`, `/help`) also work in the message box.
+**Attachments, like WhatsApp:** tap the 📎 button (*Photo or video* / *Document*), drag a file onto the chat, or paste a screenshot. Photos show inline and open full screen; videos and audio play inline; documents (PDF, Word, PowerPoint, ZIP, anything up to 10 MB) appear as a file card with a download button. Links get a **preview card** with the page's title, description and image. Attachments follow the same rules as messages: in a private chat only that person receives them.
+
+| Photos and link previews | Documents in a private chat |
+|---|---|
+| ![Photos and links](docs/web-screenshot-media.png) | ![Files](docs/web-screenshot-files.png) |
+
+**Website features:** a landing page with a live animated diagram of messages being routed (broadcast vs unicast), rooms with join codes, invite links and a **QR code that phones can scan to join**, live **"… is typing" indicators**, a public `#everyone` channel per room plus a separate private conversation with each person, online indicators, unread badges, pop-up notifications for new private messages, an emoji picker with large emoji-only messages, clickable links, soft notification sounds (with a mute button), people search, light/dark mode, a phone layout, and automatic reconnection if the server restarts. The terminal commands (`/msg`, `@user`, `/r`, `/users`, `/help`) also work in the message box.
 
 ## Deploy it on the internet
 

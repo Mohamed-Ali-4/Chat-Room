@@ -120,15 +120,31 @@ def _private(target: str, text: str) -> dict:
     return {"type": "private", "to": target, "text": text}
 
 
+def human_size(size: int) -> str:
+    for unit in ("bytes", "KB", "MB"):
+        if size < 1024 or unit == "MB":
+            return f"{size} {unit}" if unit == "bytes" else f"{size:.1f} {unit}"
+        size /= 1024
+
+
+def _with_attachment(message: dict) -> str:
+    text = message.get("text", "")
+    att = message.get("attachment")
+    if not att:
+        return text
+    note = f"[attachment: {att['name']}, {human_size(att['size'])} - open the website to view]"
+    return f"{text} {note}" if text else note
+
+
 def format_message(message: dict, me: str | None = None) -> str:
     """Render a server message as a line of text for display."""
     kind = message.get("type")
     if kind == "public":
-        return f"<{message['from']}> {message['text']}"
+        return f"<{message['from']}> {_with_attachment(message)}"
     if kind == "private":
         if message["from"] == me:
-            return f"[PM to {message['to']}] {message['text']}"
-        return f"[PM from {message['from']}] {message['text']}"
+            return f"[PM to {message['to']}] {_with_attachment(message)}"
+        return f"[PM from {message['from']}] {_with_attachment(message)}"
     if kind == "users":
         return "Online: " + ", ".join(message["users"])
     if kind == "welcome":

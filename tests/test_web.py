@@ -83,7 +83,7 @@ class WebTests(unittest.TestCase):
         ws = RawWebSocket(self.web_port)
         self.cleanup.append(ws.close)
         ws.send({"type": "nick", "name": name})
-        ws.recv_json("welcome")
+        ws.token = ws.recv_json("welcome")["token"]
         return ws
 
     def test_accept_key_rfc_example(self):
