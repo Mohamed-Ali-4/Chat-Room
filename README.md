@@ -1,23 +1,24 @@
 # Chat-Room
 
-A multi-client TCP chat room in Python (standard library only) with **public and private messages**, a terminal client, a Tkinter GUI client and a **website** (WebSocket written from scratch). Everyone shares the same room, so people in the browser, the terminal and the GUI can all send each other private messages.
+A multi-client TCP chat room in Python (standard library only) with **public and private messages**, a terminal client, a Tkinter GUI client and a **website** (WebSocket written from scratch). People join a **room with a code** (like `K7M2QX`). Everyone in the same room can chat, whether they use the browser, the terminal or the GUI, and send each other private messages. Different rooms never see each other.
 
 ## Two laptops with the website
 
 1. Connect both laptops to the same Wi-Fi.
 2. On laptop A, run `python -m chat.server`. It prints a line like `Website: open http://192.168.0.39:8000 ...`.
-3. Open that address in a browser on **both** laptops (or on a phone) and join with different nicknames.
-4. Click a name in the user list to send that person a private message.
+3. On laptop A, open that address, enter a nickname and click **Create room**. You get a code such as `K7M2QX`.
+4. On laptop B, open the same address, choose **Join with code** and type the code. You can instead click **Copy invite link** on laptop A and send that link, which fills in the code automatically.
+5. Click a name in the user list to send that person a private message.
 
 Laptop B only needs a browser, not Python. If it can't load the page, allow Python through Windows Firewall on laptop A (TCP port 8000).
 
 ![Website: private conversation](docs/web-screenshot.png)
 
-| Join screen | Dark mode | Phone |
-|---|---|---|
-| ![Join](docs/web-screenshot-join.png) | ![Dark mode](docs/web-screenshot-dark.png) | ![Phone](docs/web-screenshot-mobile.png) |
+| Landing page | Invite with a QR code | Typing indicator | Phone |
+|---|---|---|---|
+| ![Landing](docs/web-screenshot-join.png) | ![Invite](docs/web-screenshot-room-code.png) | ![Typing](docs/web-screenshot-typing.png) | ![Phone](docs/web-screenshot-invite.png) |
 
-**Website features:** a public `#everyone` room plus a separate private conversation with each person, online indicators, unread badges, pop-up notifications for new private messages, people search, light/dark mode, a phone layout, and automatic reconnection if the server restarts. The terminal commands (`/msg`, `@user`, `/r`, `/users`, `/help`) also work in the message box.
+**Website features:** an animated landing page, rooms with join codes, invite links and a **QR code that phones can scan to join**, live **"… is typing" indicators**, a public `#everyone` channel per room plus a separate private conversation with each person, online indicators, unread badges, pop-up notifications for new private messages, an emoji picker with large emoji-only messages, clickable links, soft notification sounds (with a mute button), people search, light/dark mode, a phone layout, and automatic reconnection if the server restarts. The terminal commands (`/msg`, `@user`, `/r`, `/users`, `/help`) also work in the message box.
 
 ## Deploy it on the internet
 
@@ -70,6 +71,16 @@ python demo.py
 ```
 
 The full project report (networking concepts, protocol, diagrams, test results, viva questions) is in [`docs/REPORT.md`](docs/REPORT.md).
+
+## Rooms and codes
+
+| | Website | Terminal client | GUI client |
+|---|---|---|---|
+| Create a room | **Create a room** tab | `python -m chat.client --create` | type `NEW` when asked for a code |
+| Join a room | **Join with code** tab, or open an invite link `…/?room=K7M2QX` | `python -m chat.client --room K7M2QX` | type the code |
+| No code | — | joins the default `LOBBY` room | leave it empty for `LOBBY` |
+
+Codes are 6 characters, are not case-sensitive, and skip look-alike characters (no `0/O` or `1/I/L`). A room is deleted when its last member leaves. If the server restarts, browsers reconnect into the same room code automatically.
 
 ## Sending private messages
 

@@ -47,12 +47,12 @@ class ServerTests(unittest.TestCase):
         self.server.shutdown()
         self.server.server_close()
 
-    def connect(self, name):
+    def connect(self, name, **join):
         inbox = queue.Queue()
         conn = ChatConnection("127.0.0.1", self.port, inbox.put)
         self.clients.append((conn, inbox))
-        conn.set_nick(name)
-        self.expect(inbox, "welcome")
+        conn.set_nick(name, **join)
+        conn.room = self.expect(inbox, "welcome")["room"]
         return conn, inbox
 
     def expect(self, inbox, kind, **fields):
@@ -109,6 +109,55 @@ class ServerTests(unittest.TestCase):
         self.expect(inbox, "welcome")
         conn.send({"type": "users"})
         self.expect(inbox, "users", users=["alice", "bob"])
+
+
+    def test_rooms_are_isolated(self):
+        alice, a_in = self.connect("alice", create=True)
+        code = alice.room
+        self.assertRegex(code, r"^[A-Z2-9]{6}$")
+        bob, b_in = self.connect("bob", room=code.lower())  # codes are case-insensitive
+        self.assertEqual(bob.room, code)
+        eve, e_in = self.connect("eve")  # no code -> LOBBY
+        self.assertEqual(eve.room, protocol.LOBBY)
+
+        self.expect(a_in, "users", users=["alice", "bob"])  # eve is not listed
+        alice.send_public("room only")
+        self.expect(b_in, "public", text="room only")
+        self.assert_nothing(e_in, "public")
+
+        eve.send_private("alice", "hi")  # alice is in another room
+        self.assertIn("No such user", self.expect(e_in, "error")["text"])
+
+    def test_same_nick_in_different_rooms(self):
+        self.connect("alice")
+        other, _ = self.connect("alice", create=True)
+        self.assertNotEqual(other.room, protocol.LOBBY)
+
+    def test_unknown_room_and_cleanup(self):
+        inbox = queue.Queue()
+        conn = ChatConnection("127.0.0.1", self.port, inbox.put)
+        self.clients.append((conn, inbox))
+        conn.set_nick("alice", room="ZZZZZZ")
+        self.assertIn("doesn't exist", self.expect(inbox, "error")["text"])
+
+        rooms = self.server.rooms
+        creator, _ = self.connect("bob", create=True)
+        self.assertIsNotNone(rooms.get(creator.room))
+        creator.close()
+        for _ in range(50):
+            if rooms.get(creator.room) is None:
+                break
+            threading.Event().wait(0.05)
+        self.assertIsNone(rooms.get(creator.room))  # empty rooms are deleted
+        self.assertIsNotNone(rooms.get(protocol.LOBBY))  # the LOBBY never is
+
+    def test_rejoin_recreates_room(self):
+        # A browser reconnecting after a server restart asks for its old room back.
+        inbox = queue.Queue()
+        conn = ChatConnection("127.0.0.1", self.port, inbox.put)
+        self.clients.append((conn, inbox))
+        conn.send({"type": "nick", "name": "alice", "room": "ABCD23", "rejoin": True})
+        self.assertEqual(self.expect(inbox, "welcome")["room"], "ABCD23")
 
 
 if __name__ == "__main__":

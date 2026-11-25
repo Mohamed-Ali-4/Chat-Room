@@ -3,12 +3,16 @@
 Run:  python -m chat.server [--host 0.0.0.0] [--port 5000] [--web-port 8000]
 
 Port 5000 serves the terminal/GUI clients over raw TCP. Port 8000 serves the
-web page and WebSocket clients (see web.py). Both share one chat room.
+web page and WebSocket clients (see web.py). Both share the same rooms.
+
+Users are grouped into rooms identified by a short code (e.g. "K7M2QX").
+Messages, private ones included, never leave the room they were sent in.
 """
 
 import argparse
 import logging
 import os
+import secrets
 import socket
 import socketserver
 import threading
@@ -19,9 +23,10 @@ log = logging.getLogger("chat.server")
 
 
 class ChatRoom:
-    """Thread-safe registry of connected clients and message routing."""
+    """Thread-safe registry of the clients in one room, and message routing."""
 
-    def __init__(self):
+    def __init__(self, code: str = protocol.LOBBY):
+        self.code = code
         self._clients: dict[str, "Session"] = {}
         self._lock = threading.Lock()
 
@@ -39,6 +44,10 @@ class ChatRoom:
         with self._lock:
             return self._clients.pop(name, None) is not None
 
+    def is_empty(self) -> bool:
+        with self._lock:
+            return not self._clients
+
     def users(self) -> list[str]:
         with self._lock:
             return sorted(self._clients, key=str.lower)
@@ -48,6 +57,17 @@ class ChatRoom:
             targets = [s for n, s in self._clients.items() if n != exclude]
         for session in targets:
             session.send(message)
+
+    def send_typing(self, sender: str, recipient: str | None) -> None:
+        """Relay "sender is typing": to one user (private chat) or the whole room."""
+        if recipient is None:
+            self.broadcast({"type": "typing", "from": sender, "private": False}, exclude=sender)
+            return
+        with self._lock:
+            name = self._find(recipient)
+            target = self._clients.get(name) if name and name != sender else None
+        if target is not None:
+            target.send({"type": "typing", "from": sender, "private": True})
 
     def send_private(self, sender: str, recipient: str, text: str) -> str | None:
         """Deliver a private message. Returns an error string on failure."""
@@ -60,7 +80,7 @@ class ChatRoom:
         if name == sender:
             return "You cannot send a private message to yourself."
         message = {"type": "private", "from": sender, "to": name, "text": text}
-        log.info("PRIVATE %s -> %s (%d chars, unicast)", sender, name, len(text))
+        log.info("[%s] PRIVATE %s -> %s (%d chars, unicast)", self.code, sender, name, len(text))
         target.send(message)
         if origin is not None:
             origin.send(message)  # echo so the sender sees what was delivered
@@ -75,6 +95,84 @@ class ChatRoom:
         return None
 
 
+class Rooms:
+    """All rooms on the server, looked up by code.
+
+    The default LOBBY room always exists (it is where clients that don't ask
+    for a room go). Other rooms are created on demand and deleted when the
+    last person leaves.
+    """
+
+    def __init__(self):
+        self._rooms: dict[str, ChatRoom] = {protocol.LOBBY: ChatRoom(protocol.LOBBY)}
+        self._lock = threading.Lock()
+
+    def get(self, code: str) -> ChatRoom | None:
+        with self._lock:
+            return self._rooms.get(code)
+
+    def lobby(self) -> ChatRoom:
+        return self._rooms[protocol.LOBBY]
+
+    def count(self) -> int:
+        with self._lock:
+            return len(self._rooms)
+
+    def join(self, name: str, session: "Session", code: str | None = None,
+             create: bool = False, rejoin: bool = False) -> tuple[ChatRoom | None, str | None]:
+        """Put a user in a room. Returns (room, None) or (None, error message).
+
+        create=True makes a brand-new room with a random code.
+        code=... joins that room; with rejoin=True the room is recreated if it
+        vanished (e.g. a browser reconnecting after a server restart).
+        Neither: the LOBBY.
+        """
+        with self._lock:
+            if create:
+                code = self._new_code()
+                room = self._rooms[code] = ChatRoom(code)
+            elif code:
+                code = protocol.normalize_code(code)
+                if not protocol.valid_code(code):
+                    return None, "Invalid room code."
+                room = self._rooms.get(code)
+                if room is None:
+                    if not rejoin:
+                        return None, f"Room {code} doesn't exist. Check the code or create a new room."
+                    room = self._rooms[code] = ChatRoom(code)
+            else:
+                room = self._rooms[protocol.LOBBY]
+            error = room.join(name, session)
+            if error:
+                if room.code != protocol.LOBBY and room.is_empty():
+                    del self._rooms[room.code]  # don't keep a room nobody managed to enter
+                return None, error
+            return room, None
+
+    def leave(self, room: ChatRoom, name: str) -> bool:
+        with self._lock:
+            left = room.leave(name)
+            if left:
+                log.info("[%s] %s left", room.code, name)
+            if room.code != protocol.LOBBY and room.is_empty():
+                self._rooms.pop(room.code, None)
+                log.info("[%s] room closed (empty)", room.code)
+            return left
+
+    def broadcast_all(self, message: dict) -> None:
+        with self._lock:
+            rooms = list(self._rooms.values())
+        for room in rooms:
+            room.broadcast(message)
+
+    def _new_code(self) -> str:
+        """Random code from an alphabet without look-alikes (0/O, 1/I/L); caller holds the lock."""
+        while True:
+            code = "".join(secrets.choice(protocol.CODE_ALPHABET) for _ in range(protocol.CODE_LENGTH))
+            if code not in self._rooms:
+                return code
+
+
 class Session:
     """One logged-in (or logging-in) user, independent of the transport.
 
@@ -82,8 +180,9 @@ class Session:
     feed it decoded messages, so routing rules live in one place.
     """
 
-    def __init__(self, room: ChatRoom, address, send, transport: str):
-        self.room = room
+    def __init__(self, rooms: Rooms, address, send, transport: str):
+        self.rooms = rooms
+        self.room: ChatRoom | None = None  # set once the user has joined a room
         self.address = address
         self.send = send  # callable(dict) that writes one message to this client
         self.transport = transport
@@ -91,7 +190,6 @@ class Session:
 
     def dispatch(self, message: dict) -> bool:
         """Handle one client message. Returns False to close the connection."""
-        room = self.room
         kind = message.get("type")
 
         if kind == "ping":  # keep-alive, so proxies don't close idle connections
@@ -103,21 +201,26 @@ class Session:
                 self.send({"type": "error", "text": "Choose a nickname first."})
                 return True
             name = str(message.get("name", "")).strip()
-            error = room.join(name, self)
+            room, error = self.rooms.join(
+                name, self, code=str(message.get("room") or "").strip() or None,
+                create=bool(message.get("create")), rejoin=bool(message.get("rejoin")))
             if error:
                 self.send({"type": "error", "text": error})
                 return True
-            self.name = name
-            log.info("%s joined from %s via %s", name, self.address, self.transport)
-            self.send({"type": "welcome", "name": name})
+            self.name, self.room = name, room
+            log.info("[%s] %s joined from %s via %s", room.code, name, self.address, self.transport)
+            self.send({"type": "welcome", "name": name, "room": room.code})
             room.broadcast({"type": "system", "text": f"{name} joined the chat"}, exclude=name)
             room.broadcast({"type": "users", "users": room.users()})
             return True
 
+        room = self.room
+
         text = str(message.get("text", "")).strip()
         if kind == "public":
             if text:
-                log.info("PUBLIC  %s -> everyone (%d chars, broadcast)", self.name, len(text))
+                log.info("[%s] PUBLIC  %s -> everyone in the room (%d chars, broadcast)",
+                         room.code, self.name, len(text))
                 room.broadcast({"type": "public", "from": self.name, "text": text})
         elif kind == "private":
             recipient = str(message.get("to", "")).strip()
@@ -129,6 +232,9 @@ class Session:
                     self.send({"type": "error", "text": error})
         elif kind == "users":
             self.send({"type": "users", "users": room.users()})
+        elif kind == "typing":  # not logged: it is sent every couple of seconds while typing
+            recipient = str(message.get("to") or "").strip() or None
+            room.send_typing(self.name, recipient)
         elif kind == "quit":
             return False
         elif kind == "nick":
@@ -139,8 +245,7 @@ class Session:
 
     def close(self) -> None:
         """Remove the user from the room and tell everyone else."""
-        if self.name and self.room.leave(self.name):
-            log.info("%s left", self.name)
+        if self.name and self.room and self.rooms.leave(self.room, self.name):
             self.room.broadcast({"type": "system", "text": f"{self.name} left the chat"})
             self.room.broadcast({"type": "users", "users": self.room.users()})
 
@@ -153,7 +258,7 @@ class ClientHandler(socketserver.StreamRequestHandler):
     def setup(self):
         super().setup()
         self._send_lock = threading.Lock()
-        self.session = Session(self.server.room, self.client_address, self.send, "TCP")
+        self.session = Session(self.server.rooms, self.client_address, self.send, "TCP")
 
     def send(self, message: dict) -> None:
         try:
@@ -186,8 +291,8 @@ class ChatServer(socketserver.ThreadingTCPServer):
     allow_reuse_address = True
     daemon_threads = True
 
-    def __init__(self, address, handler=ClientHandler, room: ChatRoom | None = None):
-        self.room = room or ChatRoom()
+    def __init__(self, address, handler=ClientHandler, rooms: Rooms | None = None):
+        self.rooms = rooms or Rooms()
         super().__init__(address, handler)
 
 
@@ -227,15 +332,15 @@ def main(argv=None):
                     args.port)
         args.port = 0
 
-    room = ChatRoom()
+    rooms = Rooms()
     servers = []
     ip = lan_address() if args.host == "0.0.0.0" else args.host
     if args.port:
-        servers.append(ChatServer((args.host, args.port), room=room))
+        servers.append(ChatServer((args.host, args.port), rooms=rooms))
         log.info("Chat server listening on %s:%d (TCP)", args.host, args.port)
         log.info("Terminal/GUI clients on other computers: --host %s --port %d", ip, args.port)
     if args.web_port:
-        servers.append(WebServer((args.host, args.web_port), room))
+        servers.append(WebServer((args.host, args.web_port), rooms))
         log.info("Website: open http://%s:%d in a browser on any device on the network",
                  ip, args.web_port)
 
@@ -245,7 +350,7 @@ def main(argv=None):
         servers[0].serve_forever()
     except KeyboardInterrupt:
         log.info("Shutting down")
-        room.broadcast({"type": "system", "text": "Server is shutting down."})
+        rooms.broadcast_all({"type": "system", "text": "Server is shutting down."})
     finally:
         for server in servers[1:]:
             server.shutdown()

@@ -1,6 +1,6 @@
 """Networking core shared by the terminal and GUI clients, plus the terminal client.
 
-Run:  python -m chat.client [--host 127.0.0.1] [--port 5000] [--name alice]
+Run:  python -m chat.client [--host 127.0.0.1] [--port 5000] [--name alice] [--room CODE | --create]
 """
 
 import argparse
@@ -31,8 +31,14 @@ class ChatConnection:
         with self._send_lock:
             self.sock.sendall(protocol.encode(message))
 
-    def set_nick(self, name: str) -> None:
-        self.send({"type": "nick", "name": name})
+    def set_nick(self, name: str, room: str | None = None, create: bool = False) -> None:
+        """Join as `name`: into room `room`, a new room (create=True), or the LOBBY."""
+        message = {"type": "nick", "name": name}
+        if create:
+            message["create"] = True
+        elif room:
+            message["room"] = room
+        self.send(message)
 
     def send_public(self, text: str) -> None:
         self.send({"type": "public", "text": text})
@@ -70,12 +76,14 @@ class ChatConnection:
                 self.on_disconnect()
 
 
-def run_terminal(host: str, port: int, name: str | None) -> None:
+def run_terminal(host: str, port: int, name: str | None,
+                 room: str | None = None, create: bool = False) -> None:
     joined = threading.Event()
     nick_rejected = threading.Event()
     closed = threading.Event()
     users_requested = threading.Event()  # roster updates are only shown on /users
     print_lock = threading.Lock()
+    last_error = [""]
 
     def show(text: str) -> None:
         with print_lock:
@@ -85,7 +93,10 @@ def run_terminal(host: str, port: int, name: str | None) -> None:
         if message["type"] == "welcome":
             joined.set()
         elif message["type"] == "error" and not joined.is_set():
+            last_error[0] = message["text"]
             nick_rejected.set()
+        if message["type"] in ("typing", "pong"):
+            return  # only the website shows typing indicators
         if message["type"] == "users":
             if not users_requested.is_set():
                 return
@@ -107,8 +118,11 @@ def run_terminal(host: str, port: int, name: str | None) -> None:
         while not joined.is_set():
             nick = name or input("Nickname: ").strip()
             name = None
+            if last_error[0].lower().startswith(("room", "invalid room")):
+                room = input("Room code (leave empty for the LOBBY): ").strip() or None
+            last_error[0] = ""
             nick_rejected.clear()
-            conn.set_nick(nick)
+            conn.set_nick(nick, room=room, create=create)
             while not (joined.is_set() or nick_rejected.is_set()):
                 joined.wait(0.1)
         while not closed.is_set():
@@ -142,8 +156,11 @@ def main(argv=None):
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=5000)
     parser.add_argument("--name", help="nickname (prompted if omitted)")
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument("--room", help="room code to join (default: the LOBBY room)")
+    group.add_argument("--create", action="store_true", help="create a new room and get its code")
     args = parser.parse_args(argv)
-    run_terminal(args.host, args.port, args.name)
+    run_terminal(args.host, args.port, args.name, args.room, args.create)
 
 
 if __name__ == "__main__":

@@ -6,10 +6,11 @@ import socket
 import struct
 import threading
 import unittest
+import urllib.error
 import urllib.request
 
 from chat.client import ChatConnection
-from chat.server import ChatRoom, ChatServer
+from chat.server import ChatServer, Rooms
 from chat.web import WebServer, accept_key
 
 
@@ -63,9 +64,9 @@ class RawWebSocket:
 
 class WebTests(unittest.TestCase):
     def setUp(self):
-        room = ChatRoom()
-        self.tcp = ChatServer(("127.0.0.1", 0), room=room)
-        self.web = WebServer(("127.0.0.1", 0), room)
+        rooms = Rooms()
+        self.tcp = ChatServer(("127.0.0.1", 0), rooms=rooms)
+        self.web = WebServer(("127.0.0.1", 0), rooms)
         for server in (self.tcp, self.web):
             threading.Thread(target=server.serve_forever, daemon=True).start()
         self.web_port = self.web.server_address[1]
@@ -93,6 +94,16 @@ class WebTests(unittest.TestCase):
         with urllib.request.urlopen(f"http://127.0.0.1:{self.web_port}/") as response:
             self.assertIn(b"<title>Chat Room</title>", response.read())
 
+    def test_serves_qr_library_but_nothing_else(self):
+        base = f"http://127.0.0.1:{self.web_port}"
+        with urllib.request.urlopen(f"{base}/qrcode.js") as response:
+            self.assertIn("javascript", response.headers["Content-Type"])
+            self.assertIn(b"Kazuhiko Arase", response.read(600))  # MIT licence header kept
+        for path in ("/../server.py", "/static/index.html", "/chat/web.py"):
+            with self.assertRaises(urllib.error.HTTPError, msg=path) as caught:
+                urllib.request.urlopen(base + path)
+            self.assertEqual(caught.exception.code, 404)
+
     def test_health_check_and_head(self):
         base = f"http://127.0.0.1:{self.web_port}"
         with urllib.request.urlopen(f"{base}/healthz") as response:
@@ -101,6 +112,13 @@ class WebTests(unittest.TestCase):
         with urllib.request.urlopen(request) as response:
             self.assertEqual(response.status, 200)
             self.assertEqual(response.read(), b"")
+
+    def test_typing_indicator(self):
+        alice, bob, carol = self.ws("alice"), self.ws("bob"), self.ws("carol")
+        alice.send({"type": "typing", "to": "bob"})  # private chat: only bob is told
+        self.assertEqual(bob.recv_json("typing"), {"type": "typing", "from": "alice", "private": True})
+        alice.send({"type": "typing"})  # room chat: everyone else is told
+        self.assertEqual(carol.recv_json("typing"), {"type": "typing", "from": "alice", "private": False})
 
     def test_keepalive_ping(self):
         alice = self.ws("alice")
