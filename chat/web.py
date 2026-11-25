@@ -13,18 +13,28 @@ WebSocket (RFC 6455) is implemented here by hand with the standard library:
 Every text frame carries one JSON message of the protocol in protocol.py, and
 web users share the same rooms as terminal/GUI users, so they can send
 private messages to each other.
+
+Attachments travel over plain HTTP next to the WebSocket: POST /upload stores
+the bytes and returns an id, the chat message carries only that id, and
+recipients fetch the file with GET /files/<id>/<name>. GET /preview?url=...
+returns a link preview (see preview.py). Both require the upload token the
+server handed out in "welcome", so only people in a room can use them.
 """
 
 import base64
 import hashlib
 import http.server
+import json
 import logging
 import socketserver
 import struct
 import threading
 from pathlib import Path
+from urllib.parse import parse_qs, quote, unquote, urlsplit
 
 from . import protocol
+from .files import MAX_FILE_SIZE
+from .preview import PreviewCache
 from .server import Rooms, Session
 
 log = logging.getLogger("chat.web")
@@ -108,11 +118,92 @@ class WebHandler(http.server.BaseHTTPRequestHandler):
             self.serve_bytes((STATIC_DIR / name).read_bytes(), content_type, head_only)
         elif path == "/healthz":  # for hosting platforms' health checks
             self.serve_bytes(b"ok\n", "text/plain", head_only)
+        elif path.startswith("/files/"):
+            self.serve_file(path, head_only)
+        elif path == "/preview" and not head_only:
+            self.serve_preview()
         else:
             self.send_error(404)
 
     def do_HEAD(self):
         self.do_GET(head_only=True)
+
+    def do_POST(self):
+        if urlsplit(self.path).path != "/upload":
+            self.close_connection = True
+            self.send_error(404)
+            return
+        self.handle_upload()
+
+    # -- attachments and link previews ---------------------------------------
+    def send_json(self, status: int, payload: dict) -> None:
+        body = json.dumps(payload).encode()
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(body)
+
+    def session(self) -> Session | None:
+        return self.server.rooms.session_for_token(self.headers.get("X-Upload-Token", ""))
+
+    def handle_upload(self) -> None:
+        try:
+            length = int(self.headers.get("Content-Length", ""))
+        except ValueError:
+            length = -1
+        session = self.session()
+        error = (None if session else (403, "Join a room first."))
+        if not error and length < 0:
+            error = (411, "Missing Content-Length.")
+        if not error and length > MAX_FILE_SIZE:
+            error = (413, f"Files can be at most {MAX_FILE_SIZE // (1024 * 1024)} MB.")
+        if error:
+            self.close_connection = True  # the body was not read, so the connection can't be reused
+            self.send_json(error[0], {"error": error[1]})
+            return
+        data = self.rfile.read(length)
+        if len(data) != length:
+            self.close_connection = True
+            return
+        name = unquote(self.headers.get("X-Filename", ""))
+        stored = self.server.rooms.files.add(data, name, self.headers.get("Content-Type", ""), session.token)
+        log.info("[%s] UPLOAD  %s stored %s (%d bytes, %s)", session.room.code, session.name,
+                 stored.name, stored.size, stored.type)
+        self.send_json(201, stored.meta())
+
+    def serve_file(self, path: str, head_only: bool) -> None:
+        parts = path.split("/")  # ["", "files", id, name...]
+        stored = self.server.rooms.files.get(parts[2]) if len(parts) >= 3 else None
+        if stored is None:
+            self.send_error(404, "File not found (files are kept only while the server runs)")
+            return
+        disposition = "inline" if stored.inline else "attachment"
+        if parse_qs(urlsplit(self.path).query).get("download"):
+            disposition = "attachment"
+        self.send_response(200)
+        self.send_header("Content-Type", stored.type if stored.inline else "application/octet-stream")
+        self.send_header("Content-Length", str(stored.size))
+        self.send_header("Content-Disposition", f"{disposition}; filename*=UTF-8''{quote(stored.name)}")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        if stored.type != "application/pdf":  # Chrome won't show PDFs in a sandboxed document
+            self.send_header("Content-Security-Policy", "sandbox; default-src 'none'; img-src 'self'; media-src 'self'")
+        self.send_header("Cache-Control", "private, max-age=86400")
+        self.end_headers()
+        if not head_only:
+            self.wfile.write(stored.data)
+
+    def serve_preview(self) -> None:
+        if self.session() is None:
+            self.send_json(403, {"error": "Join a room first."})
+            return
+        url = (parse_qs(urlsplit(self.path).query).get("url") or [""])[0]
+        if not url or len(url) > 2000:
+            self.send_json(400, {"error": "Missing url."})
+            return
+        preview = self.server.previews.get(url)
+        self.send_json(200, preview or {"url": url})
 
     def serve_bytes(self, body: bytes, content_type: str, head_only: bool = False) -> None:
         self.send_response(200)
@@ -195,6 +286,8 @@ class WebServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
     allow_reuse_address = True
     daemon_threads = True
 
-    def __init__(self, address, rooms: Rooms):
+    def __init__(self, address, rooms: Rooms, allow_private_previews: bool = False):
         self.rooms = rooms
+        # allow_private_previews is only for tests, which preview pages on 127.0.0.1
+        self.previews = PreviewCache(allow_private=allow_private_previews)
         super().__init__(address, WebHandler)

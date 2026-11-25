@@ -237,6 +237,24 @@ If they can't connect, allow TCP port 5000 through the server machine's firewall
 Quick demo in one terminal: `python demo.py`
 Tests: `python -m unittest -v`
 
+**Attachments (photos, videos, documents):** files use **HTTP next to the WebSocket**, which is how WhatsApp Web and Slack work too:
+
+```
+ alice (browser)                       SERVER                          bob
+   | POST /upload  (raw bytes, 2 MB) -->|  store under a random id       |
+   |<-- 201 {"id": "Xq3…", "name", "size", "type"}                      |
+   |== WS {"type":"private","to":"bob","attachment":{"id":"Xq3…"}} ==>  |
+   |                                    |== WS {..., "attachment":{name, size, type, url}} ==>|
+   |                                    |<-- GET /files/Xq3…/report.pdf ---------------------|
+```
+
+* **Why not send the file inside the WebSocket message?** A chat message should stay small, so typing and other messages are never stuck behind a 10 MB transfer (head-of-line blocking on the single TCP connection). HTTP also gives upload progress, a `Content-Length` checked *before* reading (files over 10 MB get `413 Payload Too Large`), caching and normal downloads.
+* **Who can upload or download?** Uploads need the secret **upload token** the server sends in `welcome`, so only people who have joined a room can upload. The download link contains a random 128-bit id, so only people who received the message know it. A private attachment is therefore sent by unicast like any private message.
+* **Safety:** the server ignores the name and type a client claims when sending. It uses what it stored at upload time, and only the uploader can attach a file. Images, video, audio and PDF open in the browser; everything else (HTML, SVG, scripts, office files) is served as a download with `X-Content-Type-Options: nosniff` and a sandboxing `Content-Security-Policy`, so an uploaded file can't run code on the chat's origin.
+* Files are kept in memory (up to 150 MB in total, oldest dropped first) and disappear when the server restarts.
+
+**Link previews:** for a message containing a URL, the page asks `GET /preview?url=…`. The server downloads the page and reads its Open Graph tags (`og:title`, `og:description`, `og:image`). A server that fetches URLs for clients can be abused to reach machines on its internal network (**SSRF**, Server-Side Request Forgery), so `preview.py` resolves the host once and refuses private, loopback and link-local addresses (`127.0.0.1`, `10.x`, `192.168.x`, `169.254.169.254`…). It then connects to exactly that IP so DNS can't change its answer in between (DNS rebinding), re-checks every redirect, allows only http/https on ports 80/443, and reads at most 512 KB of HTML with a 4 s timeout.
+
 **Landing page diagram:** the landing page shows an animated network diagram (*Fig. 1 · live routing*). Packets travel from a client to the server, then fan out to every other client for a public message (broadcast), or go to exactly one client, drawn in orange, for a private message (unicast). It is a visual version of Section 3.6 and is useful when presenting.
 
 **Typing indicators:** while you type, the page sends `{"type":"typing"}` (room) or `{"type":"typing","to":"bob"}` (private chat) at most once every 2 seconds, so the network isn't flooded with one packet per key press. The server relays it as `{"type":"typing","from":"alice","private":…}`, using broadcast for the room and unicast for a private chat, exactly like real messages. The receiver shows "alice is typing…" with animated dots, and the indicator disappears 3.5 s after the last signal or as soon as the message arrives. This is a small example of **soft state**: the server stores nothing, and the information expires on its own unless it's refreshed.
@@ -276,6 +294,11 @@ See the README for step-by-step deployment.
 | Typing indicator | private typing reaches only the partner, room typing reaches the room; cleared when the message arrives | Pass |
 | Invite QR code | the drawn QR code decodes (jsQR) to exactly the invite link `http://…/?room=CODE` | Pass |
 | Static files | only `index.html` and `qrcode.js` are served; paths like `/../server.py` return 404 | Pass |
+| Upload and download | photo uploaded with POST, downloaded byte-for-byte; path tricks in names (`../../`) removed | Pass |
+| Upload rules | no token → 403; over 10 MB → 413 without reading the body; HTML served as a download with nosniff + sandbox | Pass |
+| Attachment routing | private PDF reaches only the recipient; a client can't fake the file name or send someone else's file | Pass |
+| Link previews | title/description/image read from Open Graph tags, redirects followed; 127.0.0.1, 10.x, 169.254.169.254, file:// and ftp:// refused | Pass |
+| Attachments in a real browser | 📎 menu, drag-and-drop, upload progress, inline photo + full-screen viewer, file cards, 11 MB file refused | Pass |
 | Server restarted while 3 browsers are connected | banner shown, all browsers reconnect automatically, chat continues | Pass |
 | Docker image with `PORT=10000` | page served on 10000, `/healthz` returns ok, private message delivered | Pass |
 
@@ -317,3 +340,5 @@ carol has no line here, which shows the message was unicast.
 18. **How do several groups share one server and port?** The server multiplexes them at the application layer. Every connection is tagged with a room code, and a message is forwarded only to connections with the same tag, like VLAN tags on one physical switch.
 19. **Why are room codes random rather than counting 1, 2, 3?** Sequential codes are easy to guess, so anyone could walk into other rooms. `secrets.choice` gives cryptographically random codes from about 887 million possibilities.
 20. **How do typing indicators avoid flooding the network?** The client sends at most one typing signal every 2 seconds, and receivers let it expire after 3.5 seconds (soft state). The server just relays it, with broadcast for the room and unicast for a private chat.
+21. **Why are files uploaded over HTTP rather than inside the WebSocket?** One big file in the WebSocket would hold up every other message on that TCP connection (head-of-line blocking). Separate HTTP requests also give progress events, a size check before reading the body, and normal downloads.
+22. **What is SSRF and how does the link-preview feature avoid it?** Server-Side Request Forgery tricks a server into fetching internal addresses for an attacker. We resolve the host, reject non-public IPs, connect to that exact IP (to defeat DNS rebinding) and re-check every redirect.

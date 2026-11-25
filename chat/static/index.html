@@ -322,6 +322,77 @@
   .emoji-pop button { border: 0; background: none; font-size: 21px; padding: 4px 0; border-radius: 6px; }
   .emoji-pop button:hover { background: var(--hover); }
 
+  /* ================= Attachments ================= */
+  .attach-pop {
+    position: absolute; bottom: calc(100% - 4px); left: 20px; z-index: 5; min-width: 210px; padding: 6px; border-radius: 10px;
+    background: var(--panel); border: 1px solid var(--line-strong); box-shadow: 0 16px 40px -12px rgba(0, 0, 0, .25); animation: msgIn .18s ease-out;
+  }
+  .attach-pop button { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 10px; border: 0; border-radius: 7px; background: none; text-align: left; font-size: 14px; }
+  .attach-pop button:hover { background: var(--hover); }
+  .attach-pop .ai { width: 28px; height: 28px; border-radius: 6px; display: grid; place-items: center; background: var(--ink); color: var(--on-ink); }
+  .attach-pop button:nth-child(2) .ai { background: var(--accent); color: var(--on-accent); }
+  .attach-pop small { display: block; color: var(--faint); font: 400 11px var(--mono); }
+  .pending {
+    display: flex; align-items: center; gap: 12px; margin-bottom: 8px; padding: 8px 10px 8px 8px; border-radius: 10px;
+    background: var(--panel); border: 1px solid var(--line-strong); animation: msgIn .25s ease-out;
+  }
+  .pending .thumb { width: 52px; height: 52px; border-radius: 6px; object-fit: cover; background: var(--panel-2); flex: none; }
+  .pending .meta { flex: 1; min-width: 0; }
+  .pending .meta strong { display: block; font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pending .meta span { font: 400 12px var(--mono); color: var(--muted); }
+  .progress { height: 3px; margin-top: 6px; background: var(--line); border-radius: 2px; overflow: hidden; }
+  .progress i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .15s; }
+  .file-ico {
+    width: 52px; height: 52px; border-radius: 6px; flex: none; display: grid; place-items: center; background: var(--ink); color: var(--on-ink);
+    font: 600 11px var(--mono); letter-spacing: .04em;
+  }
+  .file-ico.pdf { background: #b42318; color: #fff; } .file-ico.doc { background: #1d4ed8; color: #fff; }
+  .file-ico.xls { background: #15803d; color: #fff; } .file-ico.ppt { background: #c2410c; color: #fff; }
+  .file-ico.zip { background: #6b5b3e; color: #fff; }
+
+  .bubble.has-media { padding: 4px; overflow: hidden; }
+  .bubble.has-media .caption-text { padding: 6px 9px 4px; }
+  .att-img { display: block; max-width: min(340px, 100%); max-height: 360px; border-radius: 9px; cursor: zoom-in; background: var(--panel-2); }
+  .att-video { display: block; max-width: min(380px, 100%); max-height: 360px; border-radius: 9px; background: #000; }
+  .att-audio { display: block; width: min(320px, 70vw); }
+  .att-file {
+    display: flex; align-items: center; gap: 12px; padding: 6px 8px 6px 6px; min-width: 240px; max-width: 360px; border-radius: 9px;
+    text-decoration: none !important; color: inherit; background: rgba(127, 127, 127, .1);
+  }
+  .att-file .file-ico { width: 44px; height: 44px; }
+  .att-file + * , .bubble > .att-file:not(:last-child) { margin-bottom: 6px; }
+  .att-file .meta { flex: 1; min-width: 0; line-height: 1.3; }
+  .att-file .meta strong { display: block; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .att-file .meta span { font: 400 11.5px var(--mono); opacity: .7; }
+  .att-file .dl { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; border: 1px solid currentColor; opacity: .7; }
+  .att-file:hover .dl { opacity: 1; }
+  .att-missing { font: 400 12px var(--mono); opacity: .7; padding: 6px 9px; }
+
+  .link-card {
+    display: block; margin: 8px -4px -2px; max-width: 360px; border-radius: 8px; overflow: hidden; text-decoration: none !important; color: inherit;
+    background: rgba(127, 127, 127, .1); border-left: 3px solid var(--accent); animation: msgIn .3s ease-out;
+  }
+  .link-card img { display: block; width: 100%; max-height: 180px; object-fit: cover; }
+  .link-card .lc-body { padding: 8px 11px 9px; }
+  .link-card .lc-site { font: 500 10.5px var(--mono); text-transform: uppercase; letter-spacing: .06em; opacity: .7; }
+  .link-card .lc-title { font-weight: 600; font-size: 14px; line-height: 1.3; margin-top: 2px; }
+  .link-card .lc-desc { font-size: 13px; opacity: .8; margin-top: 2px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+  .drop-zone {
+    position: absolute; inset: 64px 12px 12px; z-index: 6; display: grid; place-items: center; pointer-events: none;
+    border: 2px dashed var(--accent); border-radius: 12px; background: color-mix(in srgb, var(--bg) 88%, transparent);
+    font: 400 34px var(--serif); color: var(--text); animation: fade .15s ease-out;
+  }
+  .drop-zone small { display: block; font: 500 12px var(--mono); color: var(--muted); text-align: center; margin-top: 6px; }
+  .convo { position: relative; }
+
+  .lightbox { position: fixed; inset: 0; z-index: 40; display: flex; flex-direction: column; background: rgba(10, 10, 9, .92); animation: fade .2s ease-out; }
+  .lightbox .lb-bar { display: flex; align-items: center; gap: 10px; padding: 12px 16px; color: #ece8de; font: 500 13px var(--mono); }
+  .lightbox .lb-bar span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lightbox .lb-bar a, .lightbox .lb-bar button { color: #ece8de; }
+  .lightbox .lb-bar .icon-btn:hover { background: rgba(255, 255, 255, .12); color: #fff; }
+  .lightbox img { flex: 1; min-height: 0; width: 100%; object-fit: contain; padding: 0 16px 16px; animation: msgIn .3s ease-out; }
+
   /* ================= Toasts ================= */
   #toasts { position: fixed; right: 20px; top: 78px; display: flex; flex-direction: column; gap: 8px; z-index: 20; }
   .toast {
@@ -375,6 +446,8 @@
     #toasts { left: 12px; right: 12px; top: 70px; }
     .toast { width: 100%; }
     .emoji-pop { left: 10px; right: 10px; width: auto; }
+    .attach-pop { left: 10px; }
+    .att-file { min-width: 0; }
     .share-grid { grid-template-columns: 1fr; justify-items: center; text-align: center; }
     .legend { display: none; }
   }
@@ -401,6 +474,10 @@
   <symbol id="i-share" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M12 3v12M7 8l5-5 5 5M5 14v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5"/></symbol>
   <symbol id="i-x" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M6 6l12 12M18 6 6 18"/></symbol>
   <symbol id="i-smile" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM8.5 14.5a4.5 4.5 0 0 0 7 0M9 9.5h.01M15 9.5h.01"/></symbol>
+  <symbol id="i-clip" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="m20 11.5-8.2 8.2a5 5 0 0 1-7.1-7.1l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7l-8.5 8.5a1.7 1.7 0 0 1-2.4-2.4l7.8-7.8"/></symbol>
+  <symbol id="i-image" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="M4 5h16v14H4zM4 16l5-5 4 4 3-3 4 4M15 9.5h.01"/></symbol>
+  <symbol id="i-doc" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="M6 3h8l4 4v14H6zM14 3v4h4M9 12h6M9 16h6"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M12 4v11M7 10l5 5 5-5M5 20h14"/></symbol>
   <symbol id="i-bell" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M6 16V11a6 6 0 1 1 12 0v5l1.5 2h-15zM10 21h4"/></symbol>
   <symbol id="i-bell-off" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M6 16V11a6 6 0 0 1 9.5-4.9M18 11v5l1.5 2H8M10 21h4M3 3l18 18"/></symbol>
 </svg>
@@ -503,14 +580,23 @@
     <div class="banner hidden" id="banner"><span class="spinner"></span><span>connection lost, reconnecting…</span></div>
     <div id="log" aria-live="polite"></div>
     <div class="typing-bar" id="typing" aria-live="polite"></div>
+    <div class="drop-zone hidden" id="drop-zone"><div><span id="drop-label">Drop to send</span><small>photos, videos, documents · up to 10 MB</small></div></div>
     <div class="composer">
       <div class="emoji-pop hidden" id="emoji-pop" role="dialog" aria-label="Emoji"></div>
+      <div class="attach-pop hidden" id="attach-pop" role="menu">
+        <button type="button" role="menuitem" id="pick-media"><span class="ai"><svg width="15" height="15"><use href="#i-image"/></svg></span><span>Photo or video<small>jpg, png, gif, mp4…</small></span></button>
+        <button type="button" role="menuitem" id="pick-doc"><span class="ai"><svg width="15" height="15"><use href="#i-doc"/></svg></span><span>Document<small>pdf, docx, zip, any file</small></span></button>
+      </div>
+      <input type="file" id="file-media" accept="image/*,video/*,audio/*" hidden>
+      <input type="file" id="file-doc" hidden>
+      <div id="pending"></div>
       <form id="send-form" autocomplete="off">
+        <button class="icon-btn" id="attach-btn" type="button" title="Attach a file"><svg width="19" height="19"><use href="#i-clip"/></svg></button>
         <button class="icon-btn" id="emoji-btn" type="button" title="Emoji"><svg width="19" height="19"><use href="#i-smile"/></svg></button>
         <input id="input" maxlength="2000" placeholder="Message the room">
         <button class="send" id="send-btn" type="submit" title="Send" disabled><span class="lbl">Send</span><svg width="16" height="16"><use href="#i-arrow"/></svg></button>
       </form>
-      <p class="hint"><kbd>/msg bob hi</kbd> or <kbd>@bob hi</kbd> to whisper · <kbd>/r</kbd> to reply · <kbd>/help</kbd></p>
+      <p class="hint"><kbd>/msg bob hi</kbd> or <kbd>@bob hi</kbd> to whisper · <kbd>/r</kbd> to reply · drop or paste files to send · <kbd>/help</kbd></p>
     </div>
   </main>
 </div>
@@ -536,6 +622,14 @@
     </div>
     <input class="input link-input" id="share-link" readonly aria-label="Invite link">
   </div>
+</div>
+
+<div class="lightbox hidden" id="lightbox" role="dialog" aria-modal="true" aria-label="Photo">
+  <div class="lb-bar"><span id="lb-name"></span>
+    <a class="icon-btn" id="lb-download" title="Download"><svg width="18" height="18"><use href="#i-download"/></svg></a>
+    <button class="icon-btn" id="lb-close" type="button" title="Close"><svg width="18" height="18"><use href="#i-x"/></svg></button>
+  </div>
+  <img id="lb-img" alt="">
 </div>
 
 <div id="toasts"></div>
@@ -569,6 +663,10 @@
     typing: new Map(),                 // key -> Map(name -> expiry ms)
     lastTypingSent: 0,
     muted: store.get("muted") === "1",
+    token: null,          // proves to the server's HTTP endpoints that we are in a room
+    pending: null,        // { file, url } attachment waiting to be sent
+    uploading: false,
+    previews: new Map(),  // url -> Promise<preview | null>
   };
 
   // ---------------- helpers ----------------
@@ -735,7 +833,7 @@
     switch (m.type) {
       case "welcome": {
         const again = state.reconnecting;
-        state.me = m.name; state.room = m.room; state.reconnecting = false; state.retries = 0;
+        state.me = m.name; state.room = m.room; state.token = m.token; state.reconnecting = false; state.retries = 0;
         try { history.replaceState(null, "", "?room=" + encodeURIComponent(m.room)); } catch {}
         if (!again) showApp();
         setConnState(true);
@@ -763,13 +861,13 @@
       }
       case "public":
         stopTyping(m.from, EVERYONE);
-        add(EVERYONE, { kind: "msg", from: m.from, text: m.text, mine: m.from === state.me });
+        add(EVERYONE, { kind: "msg", from: m.from, text: m.text, attachment: m.attachment, mine: m.from === state.me });
         break;
       case "private": {
         const mine = m.from === state.me;
         const key = mine ? m.to : m.from;
         if (!mine) { state.lastSender = m.from; stopTyping(m.from, key); }
-        add(key, { kind: "msg", from: m.from, text: m.text, mine });
+        add(key, { kind: "msg", from: m.from, text: m.text, attachment: m.attachment, mine });
         break;
       }
       case "typing":
@@ -877,7 +975,7 @@
     const typers = typingNames(key);
     let preview, cls = "item-preview";
     if (typers.length) { preview = isChan ? `${typers[0]} is typing…` : "typing…"; cls += " typing"; }
-    else if (last) preview = (last.mine ? "you: " : isChan ? `${last.from}: ` : "") + last.text;
+    else if (last) preview = (last.mine ? "you: " : isChan ? `${last.from}: ` : "") + summary(last);
     else preview = isChan ? (state.users.length ? `${state.users.length + 1} people here` : "just you so far")
       : online ? "online" : "offline";
     sub.append(el("span", cls, preview));
@@ -958,12 +1056,126 @@
       head.append(el("strong", null, item.mine ? "you" : item.from), el("time", null, fmtTime(item.ts)));
       body.append(head);
     }
-    const bubble = el("div", "bubble" + (JUMBO.test(item.text.trim()) ? " jumbo" : ""));
-    richText(bubble, item.text);
+    const att = item.attachment;
+    const media = att && kindOf(att) !== "file";
+    const bubble = el("div", "bubble" + (!att && JUMBO.test(item.text.trim()) ? " jumbo" : "") + (media ? " has-media" : ""));
+    if (att) bubble.append(attachmentView(att));
+    if (item.text) {
+      const textNode = media ? el("div", "caption-text") : bubble;
+      richText(textNode, item.text);
+      if (textNode !== bubble) bubble.append(textNode);
+      const url = firstUrl(item.text);
+      if (url) attachPreview(bubble, url);
+    }
     bubble.title = new Date(item.ts).toLocaleString();
     body.append(bubble);
     row.append(body);
     return row;
+  }
+
+  // ---------------- attachments: rendering ----------------
+  const IMAGE_TYPES = ["image/png", "image/jpeg", "image/gif", "image/webp", "image/avif"];
+  function kindOf(att) {
+    if (IMAGE_TYPES.includes(att.type)) return "image";
+    if (att.type.startsWith("video/")) return "video";
+    if (att.type.startsWith("audio/")) return "audio";
+    return "file";
+  }
+  function fmtSize(n) {
+    if (n < 1024) return `${n} B`;
+    if (n < 1024 * 1024) return `${(n / 1024).toFixed(n < 10240 ? 1 : 0)} KB`;
+    return `${(n / 1024 / 1024).toFixed(1)} MB`;
+  }
+  function extOf(name) {
+    const m = /\.([a-z0-9]{1,5})$/i.exec(name || "");
+    return m ? m[1].toLowerCase() : "";
+  }
+  function fileIcon(name) {
+    const ext = extOf(name);
+    const family = ext === "pdf" ? "pdf" : ["doc", "docx", "odt", "rtf", "txt", "md"].includes(ext) ? "doc"
+      : ["xls", "xlsx", "csv", "ods"].includes(ext) ? "xls" : ["ppt", "pptx", "odp", "key"].includes(ext) ? "ppt"
+      : ["zip", "rar", "7z", "tar", "gz"].includes(ext) ? "zip" : "";
+    return el("div", "file-ico " + family, (ext || "file").slice(0, 4).toUpperCase());
+  }
+  function fileUrl(att, download) {
+    const base = att.url.replace(/^\//, "");  // relative, so it works under any path prefix
+    return base.split("/").map((p, i) => (i < 2 ? p : encodeURIComponent(p))).join("/") + (download ? "?download=1" : "");
+  }
+  function summary(item) {
+    if (!item.attachment) return item.text;
+    const k = kindOf(item.attachment);
+    const label = k === "image" ? "Photo" : k === "video" ? "Video" : k === "audio" ? "Audio" : item.attachment.name;
+    return item.text ? `${label} · ${item.text}` : label;
+  }
+  function attachmentView(att) {
+    const k = kindOf(att);
+    const missing = () => el("div", "att-missing", `${att.name} is no longer on the server`);
+    if (k === "image") {
+      const img = el("img", "att-img");
+      img.src = fileUrl(att); img.alt = att.name; img.loading = "lazy";
+      img.onclick = () => openLightbox(att);
+      img.onerror = () => img.replaceWith(missing());
+      img.onload = () => { const log = $("log"); if (log.scrollHeight - log.scrollTop - log.clientHeight < 400) log.scrollTop = log.scrollHeight; };
+      return img;
+    }
+    if (k === "video" || k === "audio") {
+      const media = el(k, k === "video" ? "att-video" : "att-audio");
+      media.src = fileUrl(att); media.controls = true; media.preload = "metadata";
+      return media;
+    }
+    const a = el("a", "att-file");
+    a.href = fileUrl(att, true); a.download = att.name;
+    const meta = el("div", "meta");
+    meta.append(el("strong", null, att.name), el("span", null, `${fmtSize(att.size)} · ${(extOf(att.name) || "file").toUpperCase()}`));
+    const dl = el("span", "dl");
+    dl.append(icon("download", 15));
+    a.append(fileIcon(att.name), meta, dl);
+    return a;
+  }
+  function openLightbox(att) {
+    $("lb-img").src = fileUrl(att); $("lb-img").alt = att.name;
+    $("lb-name").textContent = `${att.name} · ${fmtSize(att.size)}`;
+    $("lb-download").href = fileUrl(att, true); $("lb-download").download = att.name;
+    $("lightbox").classList.remove("hidden");
+    $("lb-close").focus();
+  }
+  function closeLightbox() { $("lightbox").classList.add("hidden"); $("lb-img").removeAttribute("src"); }
+  $("lb-close").addEventListener("click", closeLightbox);
+  $("lightbox").addEventListener("click", (e) => { if (e.target === $("lightbox") || e.target === $("lb-img")) closeLightbox(); });
+
+  // ---------------- link previews ----------------
+  function firstUrl(text) {
+    const m = /https?:\/\/[^\s<>"']+/.exec(text);
+    return m ? m[0].replace(/[.,;:!?)\]]+$/, "") : null;
+  }
+  function fetchPreview(url) {
+    if (!state.previews.has(url)) {
+      state.previews.set(url, fetch("preview?url=" + encodeURIComponent(url), { headers: { "X-Upload-Token": state.token || "" } })
+        .then((r) => (r.ok ? r.json() : null)).then((p) => (p && (p.title || p.description) ? p : null)).catch(() => null));
+    }
+    return state.previews.get(url);
+  }
+  function attachPreview(bubble, url) {
+    fetchPreview(url).then((p) => {
+      if (!p || !bubble.isConnected) return;
+      const card = el("a", "link-card");
+      card.href = url; card.target = "_blank"; card.rel = "noopener noreferrer";
+      if (p.image) {
+        const img = el("img");
+        img.src = p.image; img.alt = ""; img.loading = "lazy"; img.referrerPolicy = "no-referrer";
+        img.onerror = () => img.remove();
+        card.append(img);
+      }
+      const b = el("div", "lc-body");
+      if (p.site) b.append(el("div", "lc-site", p.site));
+      if (p.title) b.append(el("div", "lc-title", p.title));
+      if (p.description) b.append(el("div", "lc-desc", p.description));
+      card.append(b);
+      const log = $("log");
+      const nearBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 200;
+      bubble.append(card);
+      if (nearBottom) log.scrollTop = log.scrollHeight;
+    });
   }
 
   function appendItem(item, prev, animate) {
@@ -1033,7 +1245,7 @@
     input.placeholder = !connected ? "reconnecting…"
       : key === EVERYONE ? "Message the room"
       : reachable ? `Message ${key} privately` : `${key} is offline`;
-    $("send-btn").disabled = !connected || !input.value.trim();
+    $("send-btn").disabled = !connected || state.uploading || !(input.value.trim() || state.pending);
   }
 
   function updateTitle() {
@@ -1047,6 +1259,7 @@
     state.unread.delete(key);
     $("app").classList.add("show-convo");
     closeEmoji();
+    if (state.pending && !state.uploading) setPending(state.pending.file);  // refresh "sends to …"
     renderLog(); render(); renderTyping(); updateTitle();
     if (focus && matchMedia("(min-width: 761px)").matches) $("input").focus();
   }
@@ -1056,7 +1269,7 @@
     const t = el("button", "toast");
     t.type = "button";
     const body = el("div", "t-body");
-    body.append(el("div", "t-title", isChan ? `${item.from} · room` : `private · ${from}`), el("div", "t-text", item.text));
+    body.append(el("div", "t-title", isChan ? `${item.from} · room` : `private · ${from}`), el("div", "t-text", summary(item)));
     t.append(avatar(isChan ? item.from : from, { sm: true }), body);
     t.onclick = () => { open(from); t.remove(); };
     $("toasts").append(t);
@@ -1156,8 +1369,110 @@
     $("emoji-pop").append(b);
   }
   function closeEmoji() { $("emoji-pop").classList.add("hidden"); }
-  $("emoji-btn").addEventListener("click", (e) => { e.stopPropagation(); $("emoji-pop").classList.toggle("hidden"); });
+  $("emoji-btn").addEventListener("click", (e) => { e.stopPropagation(); closeAttach(); $("emoji-pop").classList.toggle("hidden"); });
   document.addEventListener("click", (e) => { if (!$("emoji-pop").contains(e.target)) closeEmoji(); });
+
+  // ---------------- attachments: picking and uploading ----------------
+  const MAX_FILE = 10 * 1024 * 1024;
+  function closeAttach() { $("attach-pop").classList.add("hidden"); }
+  $("attach-btn").addEventListener("click", (e) => { e.stopPropagation(); closeEmoji(); $("attach-pop").classList.toggle("hidden"); });
+  document.addEventListener("click", (e) => { if (!$("attach-pop").contains(e.target)) closeAttach(); });
+  $("pick-media").addEventListener("click", () => { closeAttach(); $("file-media").click(); });
+  $("pick-doc").addEventListener("click", () => { closeAttach(); $("file-doc").click(); });
+  for (const id of ["file-media", "file-doc"]) {
+    $(id).addEventListener("change", (e) => { if (e.target.files[0]) setPending(e.target.files[0]); e.target.value = ""; });
+  }
+
+  function setPending(file) {
+    if (!state.me) return;
+    if (file.size > MAX_FILE) {
+      add(state.current, { kind: "sys", text: `${file.name} is ${fmtSize(file.size)}; the limit is 10 MB`, error: true });
+      return;
+    }
+    clearPending();
+    closeAttach();
+    const isImage = IMAGE_TYPES.includes(file.type);
+    state.pending = { file, url: isImage ? URL.createObjectURL(file) : null };
+    const box = el("div", "pending");
+    if (isImage) {
+      const img = el("img", "thumb");
+      img.src = state.pending.url; img.alt = "";
+      box.append(img);
+    } else box.append(fileIcon(file.name));
+    const meta = el("div", "meta");
+    const where = state.current === EVERYONE ? "to the room" : `privately to ${state.current}`;
+    meta.append(el("strong", null, file.name), el("span", null, `${fmtSize(file.size)} · sends ${where}`));
+    const bar = el("div", "progress hidden");
+    bar.append(el("i"));
+    meta.append(bar);
+    const x = el("button", "icon-btn");
+    x.type = "button"; x.title = "Remove"; x.append(icon("x", 16));
+    x.onclick = () => { if (!state.uploading) { clearPending(); $("input").focus(); } };
+    box.append(meta, x);
+    $("pending").replaceChildren(box);
+    updateComposer();
+    $("input").focus();
+  }
+  function clearPending() {
+    if (state.pending?.url) URL.revokeObjectURL(state.pending.url);
+    state.pending = null;
+    $("pending").replaceChildren();
+    updateComposer();
+  }
+
+  function uploadPending() {
+    // HTTP POST of the raw bytes, with progress; the chat message then only carries the returned id.
+    const { file } = state.pending;
+    const bar = $("pending").querySelector(".progress");
+    bar.classList.remove("hidden");
+    state.uploading = true;
+    updateComposer();
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", "upload");
+      xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
+      xhr.setRequestHeader("X-Filename", encodeURIComponent(file.name));
+      xhr.setRequestHeader("X-Upload-Token", state.token || "");
+      xhr.upload.onprogress = (e) => { if (e.lengthComputable) bar.firstChild.style.width = `${(e.loaded / e.total) * 100}%`; };
+      xhr.onload = () => {
+        let body = {};
+        try { body = JSON.parse(xhr.responseText); } catch {}
+        if (xhr.status === 201) resolve(body);
+        else reject(new Error(body.error || `upload failed (HTTP ${xhr.status})`));
+      };
+      xhr.onerror = () => reject(new Error("upload failed, check your connection"));
+      xhr.send(file);
+    }).finally(() => {
+      state.uploading = false;
+      bar.classList.add("hidden");
+      bar.firstChild.style.width = "0";
+      updateComposer();
+    }).then((meta) => { clearPending(); return meta; });
+  }
+
+  // Drag a file onto the conversation, or paste an image (e.g. a screenshot) into the message box.
+  let dragDepth = 0;
+  const hasFiles = (e) => [...(e.dataTransfer?.types || [])].includes("Files");
+  $("convo").addEventListener("dragenter", (e) => {
+    if (!hasFiles(e) || !state.me) return;
+    e.preventDefault();
+    dragDepth++;
+    $("drop-label").textContent = state.current === EVERYONE ? "Drop to send to the room" : `Drop to send to ${state.current}`;
+    $("drop-zone").classList.remove("hidden");
+  });
+  $("convo").addEventListener("dragover", (e) => { if (hasFiles(e)) e.preventDefault(); });
+  $("convo").addEventListener("dragleave", () => { if (--dragDepth <= 0) { dragDepth = 0; $("drop-zone").classList.add("hidden"); } });
+  $("convo").addEventListener("drop", (e) => {
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    dragDepth = 0;
+    $("drop-zone").classList.add("hidden");
+    if (e.dataTransfer.files[0]) setPending(e.dataTransfer.files[0]);
+  });
+  $("input").addEventListener("paste", (e) => {
+    const file = [...(e.clipboardData?.files || [])][0];
+    if (file) { e.preventDefault(); setPending(file); }
+  });
 
   // ---------------- outgoing (same commands as the terminal client) ----------------
   const PRIVATE = ["/msg", "/w", "/pm", "/whisper", "/tell"];
@@ -1324,14 +1639,29 @@
 
   // ---------------- app events ----------------
   $("input").addEventListener("input", () => { updateComposer(); noteTyping(); });
-  $("send-form").addEventListener("submit", (e) => {
+  $("send-form").addEventListener("submit", async (e) => {
     e.preventDefault();
+    if (state.uploading) return;
     const input = $("input");
     let message;
-    try { message = parseInput(input.value); }
-    catch (err) { add(state.current, { kind: "sys", text: err.message, error: true }); return; }
+    try {
+      message = parseInput(input.value);
+      if (state.pending && !message)  // a file with no caption goes to the open conversation
+        message = state.current === EVERYONE ? { type: "public", text: "" } : { type: "private", to: state.current, text: "" };
+      if (state.pending && !["public", "private"].includes(message.type))
+        throw new Error("files can only go with a message, not a command");
+    } catch (err) { add(state.current, { kind: "sys", text: err.message, error: true }); return; }
+    closeEmoji(); closeAttach();
+    if (state.pending) {
+      try {
+        const meta = await uploadPending();
+        message.attachment = { id: meta.id };
+      } catch (err) {
+        add(state.current, { kind: "sys", text: err.message, error: true });
+        return;
+      }
+    }
     input.value = "";
-    closeEmoji();
     updateComposer();
     if (!message) return;
     if (message.type === "help") return add(state.current, { kind: "sys", text: HELP, help: true });
@@ -1352,7 +1682,7 @@
   $("back").addEventListener("click", () => { $("app").classList.remove("show-convo"); renderList(); });
   $("leave").addEventListener("click", leave);
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") { closeShare(); closeEmoji(); }
+    if (e.key === "Escape") { closeShare(); closeEmoji(); closeAttach(); closeLightbox(); }
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k" && state.me) {
       e.preventDefault();
       $("app").classList.remove("show-convo");
@@ -1373,6 +1703,8 @@
     state.convos = new Map([[EVERYONE, []]]);
     state.unread.clear();
     state.typing.clear();
+    clearPending();
+    closeLightbox();
     $("toasts").replaceChildren();
     $("typing").replaceChildren();
     closeShare();
