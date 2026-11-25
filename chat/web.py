@@ -11,7 +11,7 @@ WebSocket (RFC 6455) is implemented here by hand with the standard library:
    and for client->server frames a 4-byte XOR mask) followed by the payload.
 
 Every text frame carries one JSON message of the protocol in protocol.py, and
-web users share the same ChatRoom as terminal/GUI users, so they can send
+web users share the same rooms as terminal/GUI users, so they can send
 private messages to each other.
 """
 
@@ -25,7 +25,7 @@ import threading
 from pathlib import Path
 
 from . import protocol
-from .server import ChatRoom, Session
+from .server import Rooms, Session
 
 log = logging.getLogger("chat.web")
 
@@ -139,7 +139,7 @@ class WebHandler(http.server.BaseHTTPRequestHandler):
         self.close_connection = True  # don't parse further HTTP requests on this socket
 
         self._send_lock = threading.Lock()
-        session = Session(self.server.room, self.client_ip(), self.send_message, "WebSocket")
+        session = Session(self.server.rooms, self.client_ip(), self.send_message, "WebSocket")
         try:
             for text in self.messages():
                 try:
@@ -189,6 +189,6 @@ class WebServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
     allow_reuse_address = True
     daemon_threads = True
 
-    def __init__(self, address, room: ChatRoom):
-        self.room = room
+    def __init__(self, address, rooms: Rooms):
+        self.rooms = rooms
         super().__init__(address, WebHandler)

@@ -106,6 +106,51 @@
     padding-top: 16px; border-top: 1px solid var(--border); font-size: 12.5px; color: var(--faint);
   }
   .join-foot code { color: var(--muted); }
+  .tabs {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; margin: 18px 0 14px;
+    border-radius: 12px; background: var(--panel-2); border: 1px solid var(--border);
+  }
+  .tab {
+    display: flex; align-items: center; justify-content: center; gap: 6px; padding: 8px; border: 0;
+    border-radius: 9px; background: transparent; color: var(--muted); font-size: 14px; font-weight: 600;
+  }
+  .tab[aria-selected="true"] { background: var(--panel); color: var(--text); box-shadow: 0 1px 3px rgba(16, 24, 40, .12); }
+  .pane-note { margin: 0; font-size: 13.5px; color: var(--muted); }
+  .code-input {
+    text-align: center; text-transform: uppercase; letter-spacing: .35em; font-weight: 700; font-size: 20px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; padding: 10px 14px;
+  }
+  .code-input::placeholder { letter-spacing: .35em; font-weight: 500; color: var(--faint); }
+  .invite {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 14px; padding: 10px 12px; border-radius: 12px;
+    background: var(--accent-soft); color: var(--accent); font-size: 13.5px; font-weight: 500;
+  }
+
+  .room-card {
+    margin: 0 14px 10px; padding: 12px 14px; border-radius: 14px; color: #fff;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  }
+  .room-card .label { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; opacity: .8; }
+  .room-card .code-row { display: flex; align-items: center; gap: 8px; margin-top: 2px; }
+  .room-card .code {
+    flex: 1; font: 700 22px/1.2 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: .18em;
+  }
+  .room-card button {
+    display: inline-flex; align-items: center; gap: 6px; border: 0; border-radius: 9px; padding: 6px 10px;
+    background: rgba(255, 255, 255, .18); color: #fff; font-size: 12.5px; font-weight: 600;
+  }
+  .room-card button:hover { background: rgba(255, 255, 255, .28); }
+  .room-card .invite-btn { width: 100%; justify-content: center; margin-top: 10px; }
+  .empty .share { margin-top: 16px; display: inline-flex; align-items: center; gap: 8px; }
+  .empty .share code {
+    font: 700 18px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: .15em; color: var(--accent);
+    padding: 6px 12px; border-radius: 10px; background: var(--accent-soft);
+  }
+  .btn-soft {
+    display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border); border-radius: 10px;
+    padding: 7px 12px; background: var(--panel); font-size: 13px; font-weight: 600;
+  }
+  .btn-soft:hover { background: var(--hover); }
 
   /* ---------- App shell ---------- */
   #app { height: 100%; height: 100dvh; display: grid; grid-template-columns: 320px 1fr; }
@@ -302,6 +347,10 @@
   <symbol id="i-sun" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
   <symbol id="i-moon" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></symbol>
   <symbol id="i-logout" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 17l-5-5 5-5M5 12h11"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" d="M9 9h10v11H9zM5 15H4V4h11v1"/></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-key" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M14.5 9.5a4.5 4.5 0 1 1-1.3-3.2M13.2 6.3 21 14M18 11l-2 2M21 14l-2 2"/></symbol>
   <symbol id="i-arrow" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M5 12h14M13 6l6 6-6 6"/></symbol>
 </svg>
 
@@ -316,11 +365,26 @@
       <span class="chip"><svg width="14" height="14"><use href="#i-bolt"/></svg>Real-time WebSocket</span>
     </div>
     <form id="join-form" autocomplete="off">
+      <div class="invite hidden" id="invite">
+        <svg width="16" height="16"><use href="#i-link"/></svg>
+        <span>You've been invited to room <strong id="invite-code"></strong></span>
+      </div>
       <label class="field-label" for="nick">Choose a nickname</label>
       <input id="nick" class="input" maxlength="20" placeholder="e.g. alice" required
              pattern="[A-Za-z0-9_\-]{1,20}" title="1-20 letters, digits, _ or -">
+      <div class="tabs" role="tablist">
+        <button class="tab" type="button" role="tab" data-mode="create" aria-selected="true">
+          <svg width="15" height="15"><use href="#i-plus"/></svg>Create a room</button>
+        <button class="tab" type="button" role="tab" data-mode="join" aria-selected="false">
+          <svg width="15" height="15"><use href="#i-key"/></svg>Join with code</button>
+      </div>
+      <p class="pane-note" id="create-pane">You'll get a room code to share with the people you want to chat with.</p>
+      <div class="hidden" id="join-pane">
+        <label class="field-label" for="code">Room code</label>
+        <input id="code" class="input code-input" maxlength="12" placeholder="K7M2QX" autocapitalize="characters" spellcheck="false">
+      </div>
       <button id="join-btn" class="btn-primary" type="submit">
-        <span>Join the chat</span><svg width="18" height="18"><use href="#i-arrow"/></svg>
+        <span id="join-label">Create room</span><svg width="18" height="18"><use href="#i-arrow"/></svg>
       </button>
     </form>
     <div id="join-error" role="alert"></div>
@@ -337,6 +401,14 @@
       <div class="logo"><svg width="20" height="20"><use href="#i-logo"/></svg></div>
       <strong>Chat Room</strong>
       <button class="icon-btn theme-toggle" type="button" title="Toggle theme"></button>
+    </div>
+    <div class="room-card">
+      <div class="label">Room code</div>
+      <div class="code-row">
+        <span class="code" id="room-code"></span>
+        <button type="button" id="copy-code" title="Copy the room code"><svg width="14" height="14"><use href="#i-copy"/></svg><span>Copy</span></button>
+      </div>
+      <button type="button" class="invite-btn" id="copy-link"><svg width="14" height="14"><use href="#i-link"/></svg><span>Copy invite link</span></button>
     </div>
     <div class="search">
       <svg width="16" height="16"><use href="#i-search"/></svg>
@@ -391,6 +463,7 @@
   const state = {
     ws: null, me: null, users: [], current: EVERYONE, lastSender: null, leaving: false,
     reconnecting: false, retries: 0, pingTimer: null, retryTimer: null, search: "",
+    room: null, mode: "create", pendingJoin: null,
     convos: new Map([[EVERYONE, []]]),  // key -> [{kind, from, text, ts, mine, error}]
     unread: new Map(),
   };
@@ -463,13 +536,17 @@
   applyTheme(storedTheme());
 
   // ---------------- connection ----------------
-  function connect(nick) {
+  function joinMessage() {
+    if (state.reconnecting) return { type: "nick", name: state.me, room: state.room, rejoin: true };
+    return state.pendingJoin;
+  }
+  function connect() {
     clearTimeout(state.retryTimer);
     const scheme = location.protocol === "https:" ? "wss" : "ws";
     const ws = new WebSocket(`${scheme}://${location.host}/ws`);
     state.ws = ws;
     ws.onopen = () => {
-      send({ type: "nick", name: nick });
+      send(joinMessage());
       clearInterval(state.pingTimer);
       state.pingTimer = setInterval(() => send({ type: "ping" }), 25000);
     };
@@ -491,7 +568,7 @@
     setConnState(false);
     const delay = Math.min(1000 * 2 ** state.retries, 10000);
     state.retries++;
-    state.retryTimer = setTimeout(() => connect(state.me), delay);
+    state.retryTimer = setTimeout(connect, delay);
   }
   function send(message) {
     if (state.ws && state.ws.readyState === WebSocket.OPEN) {
@@ -512,7 +589,8 @@
     switch (m.type) {
       case "welcome": {
         const again = state.reconnecting;
-        state.me = m.name; state.reconnecting = false; state.retries = 0;
+        state.me = m.name; state.room = m.room; state.reconnecting = false; state.retries = 0;
+        try { history.replaceState(null, "", "?room=" + encodeURIComponent(m.room)); } catch {}
         if (!again) showApp();
         setConnState(true);
         if (again) add(EVERYONE, { kind: "sys", text: "Reconnected" });
@@ -568,9 +646,10 @@
     $("join").classList.add("hidden");
     $("app").classList.remove("hidden");
     $("me-name").textContent = state.me;
+    $("room-code").textContent = state.room;
     $("me-avatar").replaceWith(Object.assign(avatar(state.me, { sm: true }), { id: "me-avatar" }));
     if (!convo(EVERYONE).length)
-      add(EVERYONE, { kind: "sys", text: `You joined as ${state.me}` });
+      add(EVERYONE, { kind: "sys", text: `You joined room ${state.room} as ${state.me}` });
     open(EVERYONE, false);
   }
 
@@ -591,7 +670,7 @@
     const sub = el("div", "item-sub");
     let preview;
     if (last) preview = (last.mine ? "You: " : isChan ? `${last.from}: ` : "") + last.text;
-    else preview = isChan ? `${state.users.length + 1} people online` : online ? "Online · say hi 👋" : "Offline";
+    else preview = isChan ? (state.users.length ? `${state.users.length + 1} people online` : "Only you so far") : online ? "Online · say hi 👋" : "Offline";
     sub.append(el("span", "item-preview", preview));
     if (unread) sub.append(el("span", "badge" + (isChan ? "" : " private"), unread > 99 ? "99+" : unread));
     main.append(top, sub);
@@ -618,7 +697,7 @@
     const head = el("div", "section");
     head.append(el("span", null, "Private messages"), el("span", null, `${state.users.length} online`));
     list.append(head);
-    if (!sorted.length) list.append(el("p", "empty-list", q ? "No one matches your search." : "No one else is here yet. Open the chat on another device to start a private conversation."));
+    if (!sorted.length) list.append(el("p", "empty-list", q ? "No one matches your search." : `No one else is here yet. Share the room code ${state.room} to invite people.`));
     for (const p of sorted) list.append(listItem(p));
   }
 
@@ -629,7 +708,7 @@
     $("head-title").textContent = isChan ? "everyone" : key;
     const n = state.users.length + 1;
     $("head-sub").textContent = isChan
-      ? `${n} ${n === 1 ? "person" : "people"} online · public room`
+      ? `Room ${state.room} · ${n} ${n === 1 ? "person" : "people"} online`
       : isOnline(key) ? "Online" : "Offline";
     const extra = $("head-extra");
     extra.replaceChildren();
@@ -689,8 +768,19 @@
     big.append(icon(isChan ? "hash" : "lock", 32));
     box.append(big);
     if (isChan) {
-      box.append(el("h3", null, "Welcome to #everyone"),
-        el("p", null, "Messages here are seen by everyone in the room. Pick a person on the left to talk privately."));
+      box.append(el("h3", null, `Welcome to room ${state.room}`),
+        el("p", null, "Messages here are seen by everyone in this room. Pick a person on the left to talk privately."));
+      if (!state.users.length) {
+        const share = el("div", "share");
+        const btn = el("button", "btn-soft");
+        btn.type = "button";
+        btn.append(icon("link", 14), el("span", null, "Copy invite link"));
+        btn.onclick = () => copyText(inviteLink(), btn.lastChild, "Link copied!");
+        share.append(el("code", null, state.room), btn);
+        const note = el("p", null, "Nobody else is here yet. Share this code:");
+        note.style.marginTop = "16px";
+        box.append(note, share);
+      }
     } else {
       box.append(el("h3", null, `Private chat with ${key}`),
         el("p", null, `Only you and ${key} can see these messages. The server delivers them to ${key}'s connection alone (unicast).`));
@@ -771,15 +861,62 @@
   // ---------------- UI events ----------------
   $("server-addr").textContent = location.host || "local file";
 
+  function setMode(mode) {
+    state.mode = mode;
+    document.querySelectorAll(".tab").forEach((t) => t.setAttribute("aria-selected", String(t.dataset.mode === mode)));
+    $("create-pane").classList.toggle("hidden", mode !== "create");
+    $("join-pane").classList.toggle("hidden", mode !== "join");
+    $("code").required = mode === "join";
+    $("join-label").textContent = mode === "create" ? "Create room" : "Join room";
+    $("join-error").textContent = "";
+  }
+  document.querySelectorAll(".tab").forEach((t) => t.addEventListener("click", () => {
+    setMode(t.dataset.mode);
+    (t.dataset.mode === "join" && $("nick").value ? $("code") : $("nick")).focus();
+  }));
+  const cleanCode = (v) => v.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 12);
+  $("code").addEventListener("input", (e) => { e.target.value = cleanCode(e.target.value); });
+
   $("join-form").addEventListener("submit", (e) => {
     e.preventDefault();
     const nick = $("nick").value.trim();
     if (!nick) return;
+    const join = { type: "nick", name: nick };
+    if (state.mode === "create") join.create = true;
+    else {
+      const code = cleanCode($("code").value);
+      if (code.length < 4) { $("join-error").textContent = "Enter the room code you were given."; $("code").focus(); return; }
+      join.room = code;
+    }
     $("join-error").textContent = "";
     $("join-btn").disabled = true;
     state.leaving = false;
-    if (!send({ type: "nick", name: nick })) connect(nick);
+    state.pendingJoin = join;
+    if (!send(join)) connect();
   });
+
+  // ---------------- sharing ----------------
+  function inviteLink() {
+    return `${location.origin}${location.pathname}?room=${encodeURIComponent(state.room)}`;
+  }
+  async function copyText(text, labelEl, done) {
+    let ok = false;
+    try { await navigator.clipboard.writeText(text); ok = true; }
+    catch {
+      // navigator.clipboard needs HTTPS; on a plain-http LAN address fall back to execCommand.
+      const ta = Object.assign(document.createElement("textarea"), { value: text });
+      ta.style.position = "fixed"; ta.style.opacity = "0";
+      document.body.append(ta); ta.select();
+      try { ok = document.execCommand("copy"); } catch {}
+      ta.remove();
+    }
+    if (!labelEl) return;
+    const before = labelEl.textContent;
+    labelEl.textContent = ok ? done : text;
+    setTimeout(() => { labelEl.textContent = before; }, 1800);
+  }
+  $("copy-code").addEventListener("click", () => copyText(state.room, $("copy-code").lastChild, "Copied!"));
+  $("copy-link").addEventListener("click", () => copyText(inviteLink(), $("copy-link").lastChild, "Invite link copied!"));
 
   $("input").addEventListener("input", updateComposer);
   $("send-form").addEventListener("submit", (e) => {
@@ -816,7 +953,8 @@
     clearTimeout(state.retryTimer);
     clearInterval(state.pingTimer);
     if (state.ws) { send({ type: "quit" }); state.ws.close(); state.ws = null; }
-    Object.assign(state, { me: null, users: [], current: EVERYONE, lastSender: null, reconnecting: false, retries: 0 });
+    const room = state.room;
+    Object.assign(state, { me: null, room: null, users: [], current: EVERYONE, lastSender: null, reconnecting: false, retries: 0 });
     state.convos = new Map([[EVERYONE, []]]);
     state.unread.clear();
     $("toasts").replaceChildren();
@@ -825,10 +963,19 @@
     $("banner").classList.add("hidden");
     $("join").classList.remove("hidden");
     $("join-btn").disabled = false;
+    if (room) { $("code").value = room; setMode("join"); }  // easy to rejoin the same room
     updateTitle();
     $("nick").focus();
   }
 
+  // An invite link (?room=CODE) opens the "Join with code" tab with the code filled in.
+  const invited = cleanCode(new URLSearchParams(location.search).get("room") || "");
+  if (invited) {
+    $("code").value = invited;
+    $("invite-code").textContent = invited;
+    $("invite").classList.remove("hidden");
+    setMode("join");
+  } else setMode("create");
   $("nick").focus();
 })();
 </script>

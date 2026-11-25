@@ -102,7 +102,14 @@ class ChatApp:
         if not name:
             self.quit()
             return
-        self.conn.set_nick(name.strip())
+        code = simpledialog.askstring(
+            "Chat Room", "Room code to join.\nLeave empty for the LOBBY, or type NEW to create a room:",
+            parent=self.root) or ""
+        code = code.strip()
+        if code.upper() == "NEW":
+            self.conn.set_nick(name.strip(), create=True)
+        else:
+            self.conn.set_nick(name.strip(), room=code or None)
 
     # -- event handling --------------------------------------------------
     def poll(self) -> None:
@@ -126,7 +133,7 @@ class ChatApp:
             return
         if kind == "welcome":
             self.joined = True
-            self.root.title(f"Chat Room - {message['name']}")
+            self.root.title(f"Chat Room - {message['name']} - room {message.get('room', protocol.LOBBY)}")
         elif kind == "error" and not self.joined:
             messagebox.showwarning("Chat Room", message["text"])
             self.ask_nick()

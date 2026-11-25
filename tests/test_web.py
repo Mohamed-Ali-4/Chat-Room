@@ -9,7 +9,7 @@ import unittest
 import urllib.request
 
 from chat.client import ChatConnection
-from chat.server import ChatRoom, ChatServer
+from chat.server import ChatServer, Rooms
 from chat.web import WebServer, accept_key
 
 
@@ -63,9 +63,9 @@ class RawWebSocket:
 
 class WebTests(unittest.TestCase):
     def setUp(self):
-        room = ChatRoom()
-        self.tcp = ChatServer(("127.0.0.1", 0), room=room)
-        self.web = WebServer(("127.0.0.1", 0), room)
+        rooms = Rooms()
+        self.tcp = ChatServer(("127.0.0.1", 0), rooms=rooms)
+        self.web = WebServer(("127.0.0.1", 0), rooms)
         for server in (self.tcp, self.web):
             threading.Thread(target=server.serve_forever, daemon=True).start()
         self.web_port = self.web.server_address[1]

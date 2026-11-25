@@ -3,7 +3,9 @@
 Every message is a single JSON object terminated by a newline ("JSON lines").
 
 Client -> server:
-    {"type": "nick",    "name": "alice"}
+    {"type": "nick",    "name": "alice"}                     join the default LOBBY room
+    {"type": "nick",    "name": "alice", "create": true}     create a new room (random code)
+    {"type": "nick",    "name": "alice", "room": "K7M2QX"}   join an existing room by code
     {"type": "public",  "text": "hello everyone"}
     {"type": "private", "to": "bob", "text": "hi bob"}
     {"type": "users"}
@@ -11,7 +13,7 @@ Client -> server:
     {"type": "quit"}
 
 Server -> client:
-    {"type": "welcome", "name": "alice"}
+    {"type": "welcome", "name": "alice", "room": "K7M2QX"}
     {"type": "public",  "from": "alice", "text": "..."}
     {"type": "private", "from": "alice", "to": "bob", "text": "..."}
     {"type": "system",  "text": "bob joined the chat"}
@@ -25,6 +27,11 @@ import re
 ENCODING = "utf-8"
 MAX_LINE = 64 * 1024
 NICK_RE = re.compile(r"^[A-Za-z0-9_\-]{1,20}$")
+
+LOBBY = "LOBBY"  # default room for clients that don't give a code
+CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"  # no 0/O, 1/I/L look-alikes
+CODE_LENGTH = 6
+CODE_RE = re.compile(r"^[A-Z0-9]{4,12}$")
 
 HELP_TEXT = """Commands:
   /msg <user> <message>   send a private message (aliases: /w, /pm, /whisper)
@@ -57,6 +64,14 @@ def decode(line: bytes | str) -> dict:
 
 def valid_nick(name: str) -> bool:
     return bool(NICK_RE.match(name or ""))
+
+
+def normalize_code(code: str) -> str:
+    return (code or "").strip().upper().replace(" ", "").replace("-", "")
+
+
+def valid_code(code: str) -> bool:
+    return bool(CODE_RE.match(code or ""))
 
 
 def parse_input(line: str, last_sender: str | None = None) -> dict | None:
@@ -115,7 +130,8 @@ def format_message(message: dict, me: str | None = None) -> str:
     if kind == "users":
         return "Online: " + ", ".join(message["users"])
     if kind == "welcome":
-        return f"*** Welcome, {message['name']}! Type /help for commands."
+        room = message.get("room", LOBBY)
+        return f"*** Welcome, {message['name']}! You are in room {room}. Type /help for commands."
     if kind == "error":
         return f"!!! {message['text']}"
     return f"*** {message.get('text', '')}"

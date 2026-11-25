@@ -7,7 +7,7 @@
 
 ## 1. Abstract
 
-This project is a client–server chat application that runs over **TCP/IP sockets**. Many clients connect to one central server. Each client can send **public messages**, which the server delivers to every connected user, and **private messages**, which the server delivers only to the named recipient. Users can send private messages with text commands (`/msg`, `@user`, `/r`) in a terminal client, by selecting a user in a Tkinter GUI client, or from a **website** that any laptop or phone on the network can open in a browser. The website talks to the server over **WebSocket**, which we implement from scratch (HTTP upgrade handshake + frame encoding). Browser users and terminal/GUI users share one chat room, so they can message each other. The project covers the main concepts of the transport and application layers: sockets, ports, connection-oriented communication, concurrent servers, message framing and application-layer protocol design.
+This project is a client–server chat application that runs over **TCP/IP sockets**. Many clients connect to one central server. Each client can send **public messages**, which the server delivers to every connected user, and **private messages**, which the server delivers only to the named recipient. Users can send private messages with text commands (`/msg`, `@user`, `/r`) in a terminal client, by selecting a user in a Tkinter GUI client, or from a **website** that any laptop or phone on the network can open in a browser. The website talks to the server over **WebSocket**, which we implement from scratch (HTTP upgrade handshake + frame encoding). Users join a **room by its code**: one person creates a room and gets a random code (for example `K7M2QX`), and others join with that code or an invite link. Messages, including private ones, never leave their room. Browser users and terminal/GUI users can be in the same room and message each other. The project covers the main concepts of the transport and application layers: sockets, ports, connection-oriented communication, concurrent servers, message framing and application-layer protocol design.
 
 ## 2. Objectives
 
@@ -18,6 +18,7 @@ This project is a client–server chat application that runs over **TCP/IP socke
 5. Handle errors: unknown users, duplicate nicknames, malformed data and abrupt disconnects.
 6. Allow communication between different computers on the same LAN.
 7. Provide a website so a second laptop needs only a browser, by implementing the WebSocket protocol (RFC 6455) on top of TCP.
+8. Support multiple isolated chat rooms, each joined with a short room code.
 
 ## 3. Networking concepts used
 
@@ -107,6 +108,24 @@ A browser can't open a raw TCP socket, so the website uses **HTTP** and **WebSoc
         |== WS frame {private,to:carol} ==> ChatRoom ==== JSON line ====>|
 ```
 
+### 3.8 Rooms and join codes (multiplexing many groups on one server)
+One server process, on one IP address and port, hosts **many independent rooms**. This is similar to how one web server hosts many websites, or how a switch keeps VLANs apart. The server keeps a table `room code → ChatRoom`, and each `ChatRoom` has its own `nickname → connection` table.
+
+* **Create:** the server picks a random 6-character code with Python's `secrets` module, from an alphabet without look-alike characters (`0/O`, `1/I/L`). That gives 31⁶ ≈ 887 million possible codes, so codes can't realistically be guessed.
+* **Join:** the code is sent in the first message. An unknown code is rejected with an error.
+* **Routing:** a public message is broadcast only to the sockets in the **sender's room**, and a private message is looked up only in the sender's room. A user in another room is invisible, so `/msg` to them returns "No such user".
+* **Clean-up:** when the last member leaves, the room is deleted. The default `LOBBY` room always exists, for clients that don't give a code.
+* **Reconnect:** after a server restart the browser asks for its old code with `rejoin: true`, and the server recreates that room, so everyone lands back together.
+
+```
+                       +------------------ SERVER ------------------+
+ alice ─┐              |  rooms["K7M2QX"] = { alice, bob, carol }   |
+ bob   ─┼─ code K7M2QX ─▶  rooms["DX2QUH"] = { eve }                |
+ carol ─┘              |  rooms["LOBBY"]  = { ... }                 |
+ eve   ── code DX2QUH ─▶  public message → only the sender's room   |
+                       +--------------------------------------------+
+```
+
 ## 4. Application protocol design
 
 All messages are JSON objects with a `type` field.
@@ -115,7 +134,7 @@ All messages are JSON objects with a `type` field.
 
 | type | fields | meaning |
 |---|---|---|
-| `nick` | `name` | register a nickname (must be the first message) |
+| `nick` | `name`, and optionally `create: true` or `room: "K7M2QX"` | join with a nickname (must be the first message): create a new room, join a room by code, or neither for the LOBBY |
 | `public` | `text` | message to everyone |
 | `private` | `to`, `text` | message to one user |
 | `users` | — | ask for the online list |
@@ -125,12 +144,12 @@ All messages are JSON objects with a `type` field.
 
 | type | fields | meaning |
 |---|---|---|
-| `welcome` | `name` | nickname accepted |
+| `welcome` | `name`, `room` | joined. `room` is the room's code, which the creator shares |
 | `public` | `from`, `text` | public chat line |
 | `private` | `from`, `to`, `text` | private message (to recipient + echo to sender) |
 | `system` | `text` | join/leave notices |
 | `users` | `users` | current online list (sent on every join/leave) |
-| `error` | `text` | e.g. "No such user: dave", "Nickname taken" |
+| `error` | `text` | e.g. "No such user: dave", "Nickname taken", "Room ZZZZ99 doesn't exist" |
 
 Example bytes on the wire for a private message:
 ```
@@ -154,7 +173,7 @@ Example bytes on the wire for a private message:
 ```
 chat/
   protocol.py    message encoding/decoding, command parser (/msg, @user, /r ...)
-  server.py      ChatServer (threaded TCP), ChatRoom (user table + routing)
+  server.py      ChatServer (threaded TCP), Rooms (code -> room), ChatRoom (user table + routing)
   client.py      ChatConnection (socket + receiver thread) and terminal client
   gui_client.py  Tkinter GUI: chat log, online-user list, input box
   web.py         HTTP server + hand-written WebSocket (handshake, framing, ping/pong)
@@ -164,10 +183,10 @@ tests/           unit + integration tests over real sockets (incl. raw WebSocket
 ```
 
 **Server algorithm**
-1. Bind to `host:5000` (raw TCP) and `host:8000` (HTTP/WebSocket) and listen. Both share one `ChatRoom`.
+1. Bind to `host:5000` (raw TCP) and `host:8000` (HTTP/WebSocket) and listen. Both share one `Rooms` table.
 2. For each accepted connection, start a thread that:
-   1. reads lines until the client sends a valid, unused nickname;
-   2. announces the join and sends the new user list to everyone;
+   1. reads lines until the client sends a valid nickname that's unused in the requested room, and creates or looks up that room;
+   2. announces the join and sends the new user list to everyone in that room;
    3. loops: decodes each line and handles it by `type` (broadcast, unicast, users, quit);
    4. when the connection ends, removes the user and announces the departure.
 
@@ -189,9 +208,9 @@ tests/           unit + integration tests over real sockets (incl. raw WebSocket
 
 ![Website: private conversation](web-screenshot.png)
 
-| Join | Dark mode | Phone |
+| Create or join a room | Room code to share | Invite link on a phone |
 |---|---|---|
-| ![Join](web-screenshot-join.png) | ![Dark](web-screenshot-dark.png) | ![Phone](web-screenshot-mobile.png) |
+| ![Join](web-screenshot-join.png) | ![Room code](web-screenshot-room-code.png) | ![Invite](web-screenshot-invite.png) |
 
 ## 7. How to run
 
@@ -243,6 +262,11 @@ See the README for step-by-step deployment.
 | Ping frame | server replies with a pong frame | Pass |
 | Browser ↔ terminal private messages | delivered in both directions (shared room) | Pass |
 | Website in a real browser (Chromium, 3 windows incl. phone width) | private messages hidden from the third user, duplicate nickname rejected | Pass |
+| Create room / join with code (browser and terminal) | creator gets a 6-character code, others join with it, codes not case-sensitive | Pass |
+| Two rooms at once | messages and user lists never cross rooms; `/msg` to a user in another room fails | Pass |
+| Unknown room code | "Room … doesn't exist", user can retry | Pass |
+| Invite link `/?room=CODE` | join screen opens on "Join with code" with the code filled in | Pass |
+| Last member leaves | room deleted; LOBBY kept | Pass |
 | Server restarted while 3 browsers are connected | banner shown, all browsers reconnect automatically, chat continues | Pass |
 | Docker image with `PORT=10000` | page served on 10000, `/healthz` returns ok, private message delivered | Pass |
 
@@ -281,3 +305,5 @@ carol has no line here, which shows the message was unicast.
 15. **Why two ports (5000 and 8000)?** Port 5000 speaks our raw line-based protocol for Python clients. Port 8000 speaks HTTP/WebSocket for browsers. Both deliver the same JSON messages into one shared room.
 16. **Why does the deployed site use `wss://`?** The platform serves the page over HTTPS. A secure page may only open secure WebSockets, which is WebSocket inside TLS, the same way HTTPS is HTTP inside TLS.
 17. **What is a reverse proxy, and how does our server see the real client IP?** It is a server that receives clients' connections and forwards them to our app. Our TCP peer is then the proxy, so the original IP comes from the `X-Forwarded-For` header.
+18. **How do several groups share one server and port?** The server multiplexes them at the application layer. Every connection is tagged with a room code, and a message is forwarded only to connections with the same tag, like VLAN tags on one physical switch.
+19. **Why are room codes random rather than counting 1, 2, 3?** Sequential codes are easy to guess, so anyone could walk into other rooms. `secrets.choice` gives cryptographically random codes from about 887 million possibilities.
